@@ -75,7 +75,6 @@ def on_message(ws, message):
     data = json.loads(message)
     symbol = data['s']
     new_price = float(data['c'])
-    print(f"{symbol} price: {new_price} USDT")
 
     # Favorite coins check
     if symbol.lower() in [coin['symbol'].lower() for coin in load_fav_coins()['coins']]:
