@@ -20,7 +20,7 @@ def load_fav_coin():
 def retrieve_coin_symbol(col):
     data = load_fav_coin()
     coins = data['coins']
-    if col == -1:
+    if col == 6:
         return data['dynamic_coin'][0]['symbol']
     else:
         return coins[col]['symbol']
@@ -34,15 +34,15 @@ def dynamic_coin_panel(root):
         width=100,
         height=300
     )
-    side_frame.place(x = 600, y=25)
-    side_inner = ctk.CTkFrame(side_frame, corner_radius=15, fg_color="#4A9195")
+    side_frame.place(x = 565, y=25)
+    side_inner = ctk.CTkFrame(side_frame, corner_radius=15, fg_color="#696969")
     side_inner.pack(expand=True, anchor="center")
 
     button_configs = [
         ("Hard Buy", hard_buy_button_click, "darkgreen"),
-        ("Soft Buy", soft_buy_button_click, "green"),
-        ("Soft Sell", soft_sell_button_click, "red"),
-        ("Hard Sell", hard_sell_button_click, "darkred")
+        ("Soft Buy", soft_buy_button_click, "#089000"),
+        ("Soft Sell", soft_sell_button_click, "#800000"),
+        ("Hard Sell", hard_sell_button_click, "#400000")
     ]
     
     for row in range(2):
@@ -58,7 +58,7 @@ def dynamic_coin_panel(root):
                 height=30,
                 command=lambda cmd=command, c=6: cmd(c)     # This coin is dynamic coin so its index is 6
             )
-            btn.grid(row=row, column=col, padx=10, pady=10)
+            btn.grid(row=row, column=col, padx=2, pady=5)
     
     coin_buttons = []
     coins = load_fav_coin()['dynamic_coin']
@@ -73,7 +73,7 @@ def dynamic_coin_panel(root):
             width=80,
             height=40
         )
-        btn.grid(row=2, column=col, padx=13, pady=13)
+        btn.grid(row=2, column=col, padx=9, pady=10)
         coin_buttons.append(btn)
         
     for row in range(2, 4):
@@ -89,7 +89,7 @@ def dynamic_coin_panel(root):
                 height=30,
                 command=lambda cmd=command, c=6: cmd(c)
             )
-            btn.grid(row=row+1, column=col, padx=10, pady=10)
+            btn.grid(row=row+1, column=col, padx=2, pady=5)
             
     def update_coin_prices():
         new_coins = load_fav_coin()['dynamic_coin']
@@ -107,23 +107,23 @@ def fav_coin_panel(root):
         corner_radius=15,
         fg_color="transparent",
         width=100,
-        height=50
+        height=100
     )
     top_frame.place(x=15, y=15)
 
     button_inner_frame = ctk.CTkFrame(
         top_frame,
         corner_radius=15,
-        fg_color="#4A9195"
+        fg_color="#696969"
     )
     button_inner_frame.pack(expand=True, fill='both', padx=10, pady=10)
 
     # Dört tür işlem için buton tanımlamaları (4 satır)
     button_configs = [
         ("Hard Buy", hard_buy_button_click, "darkgreen"),
-        ("Soft Buy", soft_buy_button_click, "green"),
-        ("Soft Sell", soft_sell_button_click, "red"),
-        ("Hard Sell", hard_sell_button_click, "darkred")
+        ("Soft Buy", soft_buy_button_click, "#089000"),
+        ("Soft Sell", soft_sell_button_click, "#800000"),
+        ("Hard Sell", hard_sell_button_click, "#400000")
     ]
 
     # Üst iki satırdaki butonlar (2 satır x 5 sütun)
@@ -140,7 +140,7 @@ def fav_coin_panel(root):
                 height=30,
                 command=lambda cmd=command, c=col:  cmd(c)
             )
-            btn.grid(row=row, column=col, padx=10, pady=10)
+            btn.grid(row=row, column=col, padx=2, pady=5)
 
     # Coin bilgilerini gösteren butonlar için referansları saklayacağımız liste
     coin_buttons = []
@@ -157,7 +157,7 @@ def fav_coin_panel(root):
             height=40
             # Bu butonlara isterseniz bir command da ekleyebilirsiniz.
         )
-        btn.grid(row=2, column=col, padx=13, pady=13)
+        btn.grid(row=2, column=col, padx=9, pady=10)
         coin_buttons.append(btn)
 
     # Alt iki satırdaki butonlar (2 satır x 5 sütun) - grid row'ları 3 ve 4 olacak şekilde yerleştiriyoruz.
@@ -174,7 +174,7 @@ def fav_coin_panel(root):
                 height=30,
                 command=lambda cmd=command , c=col: cmd(c)
             )
-            btn.grid(row=row+1, column=col, padx=10, pady=10)
+            btn.grid(row=row+1, column=col, padx=2, pady=5)
 
     # Coin butonlarındaki değerleri her 2 saniyede güncelleyecek fonksiyon
     def update_coin_prices():
@@ -193,11 +193,11 @@ def wallet_panel(root):
     wallet_frame = ctk.CTkFrame(
         root,
         corner_radius=15,
-        fg_color="#32B14A",
+        fg_color="#089000",
         width=200,
-        height=145
+        height=115
     )
-    wallet_frame.place(x=730, y=25)
+    wallet_frame.place(x=690, y=25)
 
     def update_wallet():
         available_usdt = retrieve_usdt_balance(client)
@@ -207,7 +207,7 @@ def wallet_panel(root):
             wallet_frame,
             text=f"Wallet\n${available_usdt:.2f}",
             text_color="black",
-            fg_color="#32B14A",
+            fg_color="#089000",
             font=("Arial", 14, "bold")
         )
         w_label.place(x=75, y=10)
@@ -222,9 +222,9 @@ def coin_entry_panel(root):
         corner_radius=15,
         fg_color="gray",
         width=250,
-        height=60
+        height=50
     )
-    entry_frame.place(x=730, y=180)
+    entry_frame.place(x=690, y=145)
 
     label_entry = ctk.CTkLabel(entry_frame, text="Enter coin name", text_color="black", fg_color="gray")
     label_entry.pack(anchor="center", pady=5)
@@ -251,7 +251,8 @@ def process_coin_entry(coin_entry):
         set_dynamic_coin_symbol(full_coin_name)
         print_to_terminal(f"Coin added to dynamic coin panel: {full_coin_name}")
         # Creates the terminal panel for displaying messages
-        
+
+# Outputs of the transactions are displayed in the terminal panel
 def terminal_panel(root):
     terminal_frame = ctk.CTkFrame(
         root,
@@ -260,7 +261,7 @@ def terminal_panel(root):
         width=900,  # Changed width to 1000
         height=50
     )
-    terminal_frame.place(x=20, y=320)
+    terminal_frame.place(x=20, y=270)
 
     global terminal_output
     terminal_output = ctk.CTkTextbox(
@@ -356,17 +357,18 @@ def coin_info_button_click(col):
 
 # Main function to initialize and run the application
 def initialize_gui():
-    th1 = threading.Thread(target=start_price_websocket)
+    # Start WebSocket in a background thread with daemon=True
+    th1 = threading.Thread(target=start_price_websocket, daemon=True)
     th1.start()
 
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("blue")
 
     root.title("GAIN")
-    root.configure(bg="#3C5152")
+    root.configure(bg="#080808")
     
     window_width = 950
-    window_height = 500
+    window_height = 450
 
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
@@ -376,7 +378,7 @@ def initialize_gui():
 
     root.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
-    root.configure(fg_color="#3C5152")
+    root.configure(fg_color="#080808")
 
     fav_coin_panel(root)
     wallet_panel(root)
@@ -384,9 +386,15 @@ def initialize_gui():
     dynamic_coin_panel(root)
     terminal_panel(root)
 
-    root.mainloop()
-    ws.close()
-    os._exit(0)
+    root.mainloop()  # Start GUI
+
+    # Properly close WebSocket after GUI is closed
+    try:
+        ws.close()
+    except Exception as e:
+        print(f"Error closing WebSocket: {e}")
+
+    os._exit(0)  # Ensure all threads exit
 
 def main():
     initialize_gui()

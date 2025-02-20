@@ -20,4 +20,4 @@ accepted_price_volatility = %5
 # favorite_coins = AAVE, ETH, BTC, DOGE, RAY
 # Please write only coin symbol with big letters
 
-favorite_coins = AAVE, ETH, BTC, DOGE, EIGEN
+favorite_coins = AAVE, ETH, BTC, DOGE, RAY

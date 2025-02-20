@@ -172,19 +172,14 @@ def subscribe_to_dynamic_coin(symbol_name):
     print(f"Subscribed to {pair}")
 
 def start_price_websocket():
-    """Load preferences, subscribe to new coins, and continuously run WebSocket."""
-    load_user_preferences()
+    """Load preferences, subscribe to new coins, and run WebSocket in background."""
+    load_user_preferences()  # Load user preferences before starting WebSocket
 
-    while True:
-        try:
-            thread = threading.Thread(target=run_websocket, daemon=True)
-            thread.start()
-            thread.join()
-            print("WebSocket encountered an error. Restarting...")
-        except Exception as e:
-            print(f"Error in upgrade_price(): {e}")
-        
-        time.sleep(5)  # Wait before retrying
+    # Start WebSocket in a separate daemon thread
+    thread = threading.Thread(target=run_websocket, daemon=True)
+    thread.start()
+
+    print("WebSocket started in the background.")
 
 
 def main():
