@@ -8,6 +8,8 @@ import math
 
 """QUANTITY_P defines how much percent do you want to buy or sell the symbol depending on your wallet"""
 """TOLERANCE_P defines the percentage of your tolerance to market's price movement"""
+PREFERENCES_FILE = 'Binance_Terminal/app/Preferences.txt'
+
 
 def prepare_client():
     load_dotenv()  # Load environment variables from .env file
@@ -15,11 +17,29 @@ def prepare_client():
     api_secret = os.getenv('BINANCE_API_SECRET')
     client = Client(api_key, api_secret)
     client.API_URL = "https://testnet.binance.vision/api"  # Use Binance testnet
-    
+
+    # Zaman senkronizasyonu
+    server_time = client.get_server_time()
+    client_time = int(time.time() * 1000)
+    time_offset = server_time['serverTime'] - client_time
+    client.time_offset = time_offset
+
     return client
 
 def get_buy_preferences():
-    ...
+    """Get the buy preferences from the Preferences.txt file"""
+    with open(PREFERENCES_FILE, "r") as file:
+        for line in file:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("soft_risk"):
+                soft_risk = float(line.split("=")[1].strip().replace("%", ""))/100
+            if line.startswith("hard_risk"):
+                hard_risk = float(line.split("=")[1].strip().replace("%", ""))/100
+        
+    return soft_risk, hard_risk
+    
 
 """Wallet Info Functions"""
 def get_account_data(client):
@@ -155,22 +175,22 @@ def place_SELL_order(client, SYMBOL, SELL_QUANTITY_P):
         print(f"Error: {e}")
   
 def hard_buy_order(client, SYMBOL):
-    Hard_buy_percentage = 0.3
+    Soft_buy_percentage, Hard_buy_percentage = get_buy_preferences()
     order = place_BUY_order(client, SYMBOL, Hard_buy_percentage)
     return order
 
 def hard_sell_order(client, SYMBOL):
-    Hard_sell_percentage = 0.3
+    Soft_sell_percentage, Hard_sell_percentage = get_buy_preferences()
     order = place_SELL_order(client, SYMBOL, Hard_sell_percentage)
     return order
 
 def soft_buy_order(client, SYMBOL):
-    Soft_buy_percentage = 0.1
+    Soft_buy_percentage, Hard_buy_percentage = get_buy_preferences()
     order = place_BUY_order(client, SYMBOL, Soft_buy_percentage)
     return order
     
 def soft_sell_order(client, SYMBOL):
-    Soft_sell_percentage = 0.1
+    Soft_sell_percentage, Hard_sell_percentage = get_buy_preferences()
     order = place_SELL_order(client, SYMBOL, Soft_sell_percentage)
     return order
 
@@ -179,6 +199,14 @@ def main():
 
     symbol = "btc"
     price_tolerance = 0.001
+    
+    dolar = retrieve_usdt_balance
+    hard , soft = get_buy_preferences()
+    buy = dolar * hard
+    print(buy)
+
+    hard_buy_order(client, symbol)
+    
     
 if __name__ == "__main__":
     main()

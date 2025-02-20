@@ -1,0 +1,23 @@
+# Preferences
+
+# Please enter the percentage values for soft and hard risk appetite.
+# Example:
+# soft_risk = %10
+# hard_risk = %20
+
+soft_risk = %10
+hard_risk = %40
+
+# Please enter the percentage value for acceptable price volatility.
+# Example:
+# price_volatility = %3
+
+accepted_price_volatility = %5
+
+# FAVORITE COINS
+# Please enter only 5 coin name
+# Example:
+# favorite_coins = AAVE, ETH, BTC, DOGE, RAY
+# Please write only coin symbol with big letters
+
+favorite_coins = AAVE, ETH, BTC, DOGE, EIGEN

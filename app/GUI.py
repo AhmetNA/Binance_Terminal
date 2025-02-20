@@ -5,6 +5,7 @@ import sys
 import os
 from Get_Price import *
 from Binance_Client import *
+import time
 
 
 client = prepare_client()
@@ -66,7 +67,7 @@ def dynamic_coin_panel(root):
         btn = ctk.CTkButton(
             side_inner,
             text=coin_text,
-            fg_color="blue",
+            fg_color="gray",
             text_color="white",
             corner_radius=12,
             width=80,
@@ -149,7 +150,7 @@ def fav_coin_panel(root):
         btn = ctk.CTkButton(
             button_inner_frame,
             text=coin_text,
-            fg_color="blue",
+            fg_color="gray",
             text_color="white",
             corner_radius=12,
             width=80,
@@ -247,7 +248,7 @@ def process_coin_entry(coin_entry):
         coin_name = coin_entry.get().strip().lower()
         full_coin_name = f"{coin_name}.usdt"
         print_to_terminal(f"Coin searching '{full_coin_name}' ...")
-        add_dynamic_coin(full_coin_name)
+        set_dynamic_coin_symbol(full_coin_name)
         print_to_terminal(f"Coin added to dynamic coin panel: {full_coin_name}")
         # Creates the terminal panel for displaying messages
         
@@ -355,7 +356,7 @@ def coin_info_button_click(col):
 
 # Main function to initialize and run the application
 def initialize_gui():
-    th1 = threading.Thread(target=upgrade_price)
+    th1 = threading.Thread(target=start_price_websocket)
     th1.start()
 
     ctk.set_appearance_mode("dark")
