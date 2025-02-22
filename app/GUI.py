@@ -3,8 +3,8 @@ from tkinter import END
 import json
 import sys
 import os
-from Get_Price import *
-from Binance_Client import *
+from Binance_Terminal.App.Price_Update import *
+from Binance_Terminal.App.Order_Func import *
 import time
 
 
