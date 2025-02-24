@@ -176,8 +176,7 @@ def start_price_websocket():
     load_user_preferences()  # Load user preferences before starting WebSocket
 
     # Start WebSocket in a separate daemon thread
-    thread = threading.Thread(target=run_websocket, daemon=True)
-    thread.start()
+    run_websocket()
 
     print("WebSocket started in the background.")
 

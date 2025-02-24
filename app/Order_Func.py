@@ -69,6 +69,7 @@ def get_amountOf_asset(client, SYMBOL):
     return 0.0
 
 def retrieve_usdt_balance(client):
+    
     """ Retrieve the USDT balance from the account data"""
     account_data = get_account_data(client)
     
@@ -109,6 +110,7 @@ def round_quantity(quantity, step_size):
     """Round the quantity to the nearest step size otherwise Binance will throw an error"""
     precision = int(round(-math.log(step_size, 10), 0))
     return round(quantity, precision)
+
 
 """ ORDER FUNCTIONS """
 def place_BUY_order(client, SYMBOL, BUY_QUANTITY_P):
@@ -193,6 +195,23 @@ def soft_sell_order(client, SYMBOL):
     Soft_sell_percentage, Hard_sell_percentage = get_buy_preferences()
     order = place_SELL_order(client, SYMBOL, Soft_sell_percentage)
     return order
+
+def make_order(Style, Symbol):
+    client = prepare_client()
+    if Style == "Hard_Buy":
+        order = hard_buy_order(client, Symbol)
+        return order
+    elif Style == "Hard_Sell":
+        order = hard_sell_order(client, Symbol)
+        return order
+    elif Style == "Soft_Buy":
+        order = soft_buy_order(client, Symbol)
+        return order
+    elif Style == "Soft_Sell":
+        order = soft_sell_order(client, Symbol)
+        return order
+    else:
+        print("Wrong Style")
 
 def main():
     client = prepare_client()
