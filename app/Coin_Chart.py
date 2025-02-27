@@ -1,5 +1,27 @@
 import requests
+
+"""
+This module retrieves and formats 1-minute candlestick data from the Binance API.
+It contains functions to fetch raw candle data, convert that data into a structured
+pandas DataFrame with appropriate column names and data types, and provide the
+final chart-ready data for further analysis.
+Functions:
+    fetch_1m_candles(symbol="BTCUSDT", limit=50):
+        Makes an HTTP GET request to Binance API to obtain the latest 1-minute candlestick
+        data for the given trading symbol. Returns the raw JSON data from the API.
+    format_candle_data(candles):
+        Takes the raw candlestick JSON data and converts it into a pandas DataFrame.
+        It assigns predefined column names, converts the timestamp to datetime,
+        converts relevant columns to numerical data types, and sets the timestamp as the index.
+    get_chart_data(symbol="BTCUSDT"):
+        Orchestrates the process by first fetching the raw candle data and then formatting it.
+        It raises a ValueError if the API response is not in the expected format.
+"""
 import pandas as pd
+
+
+
+
 
 def fetch_1m_candles(symbol="BTCUSDT", limit=50):
     """

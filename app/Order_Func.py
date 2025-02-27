@@ -5,10 +5,21 @@ import os
 import websocket
 import json
 import math
+"""
+Order_Func.py
+This file handles the creation and execution of different types of orders.
+Depending on the chosen style (Hard_Buy, Hard_Sell, Soft_Buy, Soft_Sell), it prepares
+the client and executes the corresponding order function. The main function demonstrates
+the order creation process and showcases how buy preferences and balances are used.
+"""
 
-"""QUANTITY_P defines how much percent do you want to buy or sell the symbol depending on your wallet"""
-"""TOLERANCE_P defines the percentage of your tolerance to market's price movement"""
-PREFERENCES_FILE = 'Binance_Terminal/app/Preferences.txt'
+"""
+QUANTITY_P defines how much percent do you want to buy or sell the symbol depending on your wallet
+TOLERANCE_P defines the percentage of your tolerance to market's price movement
+"""
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PREFERENCES_FILE = os.path.normpath(os.path.join(CURRENT_DIR, '..', 'app', 'Preferences.txt'))
 
 
 def prepare_client():
@@ -221,8 +232,6 @@ def main():
     
     dolar = retrieve_usdt_balance
     hard , soft = get_buy_preferences()
-    buy = dolar * hard
-    print(buy)
 
     hard_buy_order(client, symbol)
     

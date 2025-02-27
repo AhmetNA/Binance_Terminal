@@ -14,14 +14,34 @@ import threading
 
 class MainWindow(QMainWindow):
     def __init__(self, client):
+        """
+        Initializes the main GUI window for the application.
+        This constructor sets up the entire user interface which includes:
+            - A Favorite Coin Panel with a grid layout containing buttons for:
+                * Hard Buy (row 0)
+                * Soft Buy (row 1)
+                * Coin label buttons displaying coin name and price (row 2)
+                  (creates lists for coins, stored in self.fav_coin_buttons) # This button shows coin's chart
+                * Soft Sell (row 3)
+                * Hard Sell (row 4)
+            - A Dynamic Coin Panel with buttons for dynamic coin operations and a coin label (stored in self.dyn_coin_button)
+            - A right-side panel featuring:
+                * A wallet frame displaying the current wallet balance.
+                * A coin entry frame allowing the user to input a coin name.
+            - A terminal (read-only text area) for log outputs or status messages.
+        Additionally, this method configures two QTimers:
+            - One to update coin prices every second.
+            - One to update the wallet balance every second.
+        Parameters:
+            client: An instance of the backend client used to interact with data and execute coin orders.
+        """
         super().__init__()
-        self.client = client  # Client nesnesini sınıfın bir üyesi olarak sakla
+        self.client = client
         self.setWindowTitle("GAIN")
         self.resize(750, 400)
+
         
-        # Favori coin buton referanslarını saklamak için liste
         self.fav_coin_buttons = []
-        # Dinamik coin buton referansı
         self.dyn_coin_button = None
         
         central_widget = QWidget()

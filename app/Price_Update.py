@@ -1,3 +1,18 @@
+"""
+This module manages the Binance WebSocket connection to update coin prices in real-time for 
+both favorite coins and a dynamic coin. It loads user preferences from a text file, retrieves 
+favorite coin configurations from a JSON file, and formats subscription symbols for the Binance 
+WebSocket stream.
+Key functionalities include:
+- Loading and updating favorite coins and dynamic coin data from JSON and preferences files.
+- Formatting coin symbols for WebSocket subscription.
+- Maintaining a persistent connection to the Binance WebSocket stream with automatic reconnection 
+    and error handling.
+- Updating coin price data within the JSON configuration upon receiving new price updates.
+- Enabling dynamic subscription to new coins via user-defined preferences and runtime changes.
+The module uses threading to run the WebSocket connection in the background, ensuring the coin 
+price information is continuously updated in real-time.
+"""
 import websocket
 import json
 import threading
@@ -5,10 +20,16 @@ import time
 import ssl
 import os
 
-""" FAVORITE COINS """
 
-PREFERENCES_FILE = 'Binance_Terminal/app/Preferences.txt'
-FAV_COINS_FILE = 'Binance_Terminal/app/fav_coins.json'
+
+""" FAVORITE COINS """
+# Get the directory where this file is located
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Assuming the Preferences and fav_coins files are in the same directory as this script
+PREFERENCES_FILE = os.path.join(CURRENT_DIR, 'Preferences.txt')
+FAV_COINS_FILE = os.path.join(CURRENT_DIR, 'fav_coins.json')
+
 BINANCE_WS_URL = "wss://stream.binance.com:9443/ws"
 
 def load_fav_coins():
