@@ -1,0 +1,9 @@
+{
+	"folders": [],
+	"settings": {
+		"files.autoSave": "afterDelay",
+		"files.associations": {
+			"limits": "c"
+		}
+	}
+}

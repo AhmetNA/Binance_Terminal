@@ -1,2 +1,2 @@
 # Binance_Terminal
- Terminal for fast transactions
+Fastest way to trade on Binance
