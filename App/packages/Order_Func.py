@@ -2,9 +2,14 @@ from binance.client import Client
 import time
 from dotenv import load_dotenv
 import os
+
+import ssl
+from requests.adapters import HTTPAdapter
+from urllib3.poolmanager import PoolManager
 import websocket
 import json
 import math
+import requests
 """
 Order_Func.py
 This file handles the creation and execution of different types of orders.

@@ -57,7 +57,7 @@ class MainWindow(QMainWindow):
         top_layout = QHBoxLayout()
         main_layout.addLayout(top_layout)
         
-        """Fav Coin Panel"""
+        # 1) Favori Coin Paneli (5 sütun)
         fav_coin_group = QGroupBox()
         fav_coin_group.setMinimumSize(430, 250)
         fav_coin_group.setStyleSheet("""
@@ -129,7 +129,7 @@ class MainWindow(QMainWindow):
         
         top_layout.addWidget(fav_coin_group)
         
-        """Dynamic Coin Panel"""
+        # 2) Dinamik Coin Paneli (Tek sütun, 5 satır)
         dyn_coin_group = QGroupBox()
         dyn_coin_group.setMinimumSize(100, 20)
         dyn_coin_group.setStyleSheet("""
@@ -171,7 +171,7 @@ class MainWindow(QMainWindow):
         
         top_layout.addWidget(dyn_coin_group)
         
-        """Wallet and Coin Entry Panel"""
+        # 3) Sağ kısım: (Wallet + Coin Entry)
         right_side_layout = QVBoxLayout()
         right_side_layout.setSpacing(10)
         
@@ -190,7 +190,7 @@ class MainWindow(QMainWindow):
         self.lbl_wallet.setAlignment(Qt.AlignCenter)
         wallet_layout.addWidget(self.lbl_wallet)
         right_side_layout.addWidget(wallet_frame)
-                
+        
         entry_frame = QFrame()
         entry_frame.setFixedSize(200, 80)
         entry_frame.setStyleSheet("""
@@ -202,25 +202,20 @@ class MainWindow(QMainWindow):
         """)
         entry_layout = QVBoxLayout(entry_frame)
         entry_layout.setContentsMargins(10, 10, 10, 10)
-
         lbl_entry = QLabel("Enter coin name")
         lbl_entry.setAlignment(Qt.AlignCenter)
         entry_layout.addWidget(lbl_entry)
-
         self.coin_input = QLineEdit()
-        self.coin_input.returnPressed.connect(self.submit_coin)
         entry_layout.addWidget(self.coin_input)
-
         btn_submit = QPushButton("Submit")
         btn_submit.setStyleSheet("QPushButton { background-color: gray; color: black; border-radius: 8px; }")
         btn_submit.clicked.connect(self.submit_coin)
         entry_layout.addWidget(btn_submit)
-
         right_side_layout.addWidget(entry_frame)
-        top_layout.addLayout(right_side_layout)
-
         
-        """Terminal"""
+        top_layout.addLayout(right_side_layout)
+        
+        # ALT KISIM: Terminal
         self.terminal = QPlainTextEdit()
         self.terminal.setReadOnly(True)
         self.terminal.setStyleSheet("""
@@ -233,16 +228,15 @@ class MainWindow(QMainWindow):
         """)
         main_layout.addWidget(self.terminal)
         
-        # To update prices for every second
+        # Her 1 saniyede coin fiyatlarını güncellemek için QTimer
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_coin_prices)
         self.timer.start(1000)  # 1000 ms = 1 saniye
 
-        # To update wallet for every second
+        # Her 1 saniyede cüzdanı güncellemek için QTimer
         self.wallet_timer = QTimer(self)
         self.wallet_timer.timeout.connect(self.update_wallet)
         self.wallet_timer.start(1000)  # 1000 ms = 1 saniye
-
 
     def append_to_terminal(self, text):
         self.terminal.appendPlainText(text)
@@ -254,6 +248,9 @@ class MainWindow(QMainWindow):
             self.append_to_terminal(f"New coin submitted: {coin_name}")
         self.coin_input.clear()
 
+    # Connect the QLineEdit's returnPressed signal so that hitting Enter triggers submit_coin
+    def setup_coin_input(self):
+        self.coin_input.returnPressed.connect(self.submit_coin)
     
     def update_coin_prices(self):
         try:
@@ -405,7 +402,6 @@ def initialize_gui():
 
 def main():
 
-    client = prepare_client()
     
     # Start background thread for price_update function
     background_thread = threading.Thread(target=start_price_websocket, daemon=True)
