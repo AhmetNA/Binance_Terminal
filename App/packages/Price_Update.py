@@ -22,6 +22,9 @@ import os
 
 
 
+pending_subscriptions = []
+
+
 """ FAVORITE COINS """
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -144,16 +147,42 @@ def on_message(ws, message):
     if isinstance(dynamic_coin, list) and dynamic_coin and symbol.lower() == dynamic_coin[0]['symbol'].lower():
         refresh_dynamic_coin_price(symbol, new_price)
 
+
+
 def on_open(ws):
-    """Subscribe to favorite coins on WebSocket open."""
-    print("WebSocket connection opened! Subscribing to updated SYMBOLS...")
-    
-    params = {
+    """Handle WebSocket open: subscribe to favorite symbols and any pending dynamic subscriptions."""
+    print("WebSocket connection opened! Subscribing to SYMBOLS + pending...")
+
+    # Subscribe to all favorite coins
+    initial = {
         "method": "SUBSCRIBE",
         "params": SYMBOLS,
         "id": next(id_gen)
     }
-    ws.send(json.dumps(params))
+    ws.send(json.dumps(initial))
+
+    # Subscribe to any queued dynamic coin symbols
+    if pending_subscriptions:
+        pending_msg = {
+            "method": "SUBSCRIBE",
+            "params": pending_subscriptions.copy(),
+            "id": next(id_gen)
+        }
+        ws.send(json.dumps(pending_msg))
+        print(f"Subscribed pending: {pending_subscriptions}")
+        pending_subscriptions.clear()
+
+    # Ardından queue’daki dinamik coin’leri gönder
+    if pending_subscriptions:
+        pending = {
+            "method": "SUBSCRIBE",
+            "params": pending_subscriptions.copy(),
+            "id": next(id_gen)
+        }
+        ws.send(json.dumps(pending))
+        print(f"Subscribed pending: {pending_subscriptions}")
+        pending_subscriptions.clear()
+
 
 def on_close(ws, close_status_code, close_msg):
     """Handle WebSocket closure."""
@@ -185,24 +214,26 @@ def run_websocket():
             time.sleep(5)
 
 def subscribe_to_dynamic_coin(symbol_name):
-    """Subscribe to a new dynamic coin."""
-    pair = format_binance_ticker_symbols([symbol_name])
-    msg = {
-        "method": "SUBSCRIBE",
-        "params": pair,
-        "id": next(id_gen)
-    }
-    ws.send(json.dumps(msg))
-    print(f"Subscribed to {pair}")
+    base = symbol_name.upper().replace("USDT", "")
+    pair = f"{base.lower()}usdt@ticker"
+    msg = {"method": "SUBSCRIBE", "params": [pair], "id": next(id_gen)}
+
+    if ws.sock and getattr(ws.sock, "connected", False):
+        try:
+            ws.send(json.dumps(msg))
+            print(f"Subscribed to {pair}")
+        except websocket.WebSocketConnectionClosedException:
+            pending_subscriptions.append(pair)
+            print(f"Socket kapalı → queue’ye eklendi: {pair}")
+    else:
+        pending_subscriptions.append(pair)
+        print(f"WebSocket hazır değil → queue’ye eklendi: {pair}")
 
 def start_price_websocket():
-    """Load preferences, subscribe to new coins, and run WebSocket in background."""
-    load_user_preferences()  # Load user preferences before starting WebSocket
-
-    # Start WebSocket in a separate daemon thread
-    run_websocket()
-
-    print("WebSocket started in the background.")
+    load_user_preferences()
+    thread = threading.Thread(target=run_websocket, daemon=True)
+    thread.start()
+    print("WebSocket started in background.")
 
 
 def main():
