@@ -4,12 +4,15 @@ import sys
 from .Order_Func import *
 from .Price_Update import *
 from .Coin_Chart import *
+from .SetPreferences import *
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
-    QPushButton, QLabel, QLineEdit, QPlainTextEdit, QFrame
+    QPushButton, QLabel, QLineEdit, QPlainTextEdit, QFrame, QDialog
 )
+
+
 from PySide6.QtCore import Qt, QTimer
 import threading
 
@@ -56,6 +59,7 @@ class MainWindow(QMainWindow):
         # ÜST KISIM: Favori Coin Paneli + Dinamik Coin Paneli + (Cüzdan + Coin Entry)
         top_layout = QHBoxLayout()
         main_layout.addLayout(top_layout)
+
         
         """Fav Coin Panel"""
         fav_coin_group = QGroupBox()
@@ -174,21 +178,33 @@ class MainWindow(QMainWindow):
         """Wallet and Coin Entry Panel"""
         right_side_layout = QVBoxLayout()
         right_side_layout.setSpacing(10)
-        
+                
+                # ► Wallet Frame’ı küçült ve Settings butonunu içine ekle
         wallet_frame = QFrame()
-        wallet_frame.setFixedSize(200, 150)
+        wallet_frame.setFixedSize(200, 100)  # küçültülmüş yükseklik
         wallet_frame.setStyleSheet("""
             QFrame {
-                background-color: #089000;
-                color: black;
-                border-radius: 15px;
+            background-color: #089000;
+            color: black;
+            border-radius: 15px;
             }
         """)
+        # Wallet Frame’in içindeki layout’ı vertical hizada ortalayalım:
         wallet_layout = QVBoxLayout(wallet_frame)
-        wallet_layout.setContentsMargins(10, 10, 10, 10)
-        self.lbl_wallet = QLabel("Wallet\n$60045.69")
+        wallet_layout.setContentsMargins(5, 5, 5, 5)
+        wallet_layout.setAlignment(Qt.AlignCenter)  # ⭐ Ortalamayı sağlar
+
+        # Settings butonu en üste ortalı
+        btn_settings = QPushButton("Settings")
+        btn_settings.setFixedSize(70, 25)
+        btn_settings.clicked.connect(self.open_settings)
+        wallet_layout.addWidget(btn_settings, alignment=Qt.AlignHCenter)  # ⭐ Yatayda ortala
+
+        # Wallet bilgisi onun altında ortada
+        self.lbl_wallet = QLabel("Wallet\n$0.00")
         self.lbl_wallet.setAlignment(Qt.AlignCenter)
-        wallet_layout.addWidget(self.lbl_wallet)
+        wallet_layout.addWidget(self.lbl_wallet, alignment=Qt.AlignHCenter)
+
         right_side_layout.addWidget(wallet_frame)
                 
         entry_frame = QFrame()
@@ -279,6 +295,13 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.append_to_terminal(f"Error updating wallet: {e}")
 
+    # 2️⃣ MainWindow sınıfına bu metodu ekle
+    def open_settings(self):
+        """Settings butonuna tıklayınca yeni pencereyi açar."""
+        dlg = SettingsWindow(self)
+        dlg.exec()
+
+    
     def show_coin_details(self, btn):
         import matplotlib.pyplot as plt
         import mplfinance as mpf  # mum grafikler için
@@ -325,6 +348,60 @@ class MainWindow(QMainWindow):
             plt.show()
         except Exception as e:
             self.append_to_terminal(f"Error displaying chart for {symbol}: {e}")
+
+class SettingsWindow(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Settings")
+        self.setMinimumSize(350, 350)
+
+        # Dosyadan prefs oku
+        prefs = {}
+        with open(PREFERENCES_FILE, 'r') as f:
+            for line in f:
+                if "=" in line and not line.strip().startswith("#"):
+                    key, val = line.split("=", 1)
+                    prefs[key.strip()] = val.strip().lstrip("%")
+        # Store original preferences to allow change detection
+        self.original_prefs = prefs.copy()
+
+        layout = QVBoxLayout(self)
+        self.pref_edits = {}
+        for key in ("soft_risk", "hard_risk", "accepted_price_volatility"):
+            layout.addWidget(QLabel(key.replace("_", " ").title()))
+            edit = QLineEdit(prefs.get(key, ""))
+            self.pref_edits[key] = edit
+            layout.addWidget(edit)
+
+        layout.addWidget(QLabel("Favorite Coins"))
+        self.original_coins = [c.strip() for c in prefs.get("favorite_coins", "").split(",")]
+        self.fav_edits = []
+        for coin in self.original_coins:
+            edit = QLineEdit(coin)
+            self.fav_edits.append(edit)
+            layout.addWidget(edit)
+
+        btn_save = QPushButton("Save")
+        btn_save.clicked.connect(self.save_settings)
+        layout.addWidget(btn_save)
+
+    def save_settings(self):
+        # Only update and append info for changed preferences
+        for key, edit in self.pref_edits.items():
+            new_val = edit.text().strip()
+            if new_val and new_val != self.original_prefs.get(key, ""):
+                msg = set_preference(key, new_val)
+                self.parent().append_to_terminal(msg)
+
+        # Check favorite coins one by one and update only if there is a change
+        for old, edit in zip(self.original_coins, self.fav_edits):
+            new_coin = edit.text().strip().upper()
+            if new_coin and new_coin != old:
+                msg = update_favorite_coin(old, new_coin)
+                self.parent().append_to_terminal(msg)
+
+        self.accept()
+
 
 
 
@@ -386,6 +463,9 @@ def order_buttons(self, style, col):
         )
     else:
         self.append_to_terminal("Wrong Style")
+
+
+
 
 
 def initialize_gui():

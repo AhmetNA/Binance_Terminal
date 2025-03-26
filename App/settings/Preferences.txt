@@ -12,7 +12,7 @@ hard_risk = %40
 # Example:
 # price_volatility = %3
 
-accepted_price_volatility = %5
+accepted_price_volatility = %3
 
 # FAVORITE COINS
 # Please enter only 5 coin name
@@ -20,4 +20,4 @@ accepted_price_volatility = %5
 # favorite_coins = AAVE, ETH, BTC, DOGE, RAY
 # Please write only coin symbol with big letters
 
-favorite_coins = AAVE, ETH, BTC, DOGE, RAY
+favorite_coins = AAVE, ETH, BTC, DOGE, EIGEN

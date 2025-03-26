@@ -1,4 +1,4 @@
-from Order_Func import PREFERENCES_FILE  # Definition of the Preferences.txt file path
+from .Order_Func import PREFERENCES_FILE  # Definition of the Preferences.txt file path
 
 def set_preference(key: str, new_value: str):
     """
@@ -32,7 +32,7 @@ def set_preference(key: str, new_value: str):
     with open(PREFERENCES_FILE, 'w') as f:
         f.writelines(new_lines)
 
-    return f"{key} preference updated to {new_value}"
+    return f"{key} preference updated to {new_value} please restart the application to see the changes"
 
 def update_favorite_coin(old_coin: str, new_coin: str):
     """
@@ -40,10 +40,19 @@ def update_favorite_coin(old_coin: str, new_coin: str):
     and replace it with new_coin (preserving the order of the other coins).
     If new_coin is already in the list, return "The coin is already on the fav coin list".
     If new_coin is added (by replacement or appending), return "<new_coin> coin added to fav coin list".
+
+    Note: Provide new_coin without the 'USDT' suffix. For example, enter 'xxx' instead of 'xxxUSDT' or 'xxxusdt'.
     """
     
-    old_coin = old_coin.upper()
-    new_coin = new_coin.upper()
+    old_coin = old_coin.upper() if old_coin else ""
+    new_coin = new_coin.upper() if new_coin else ""
+    
+    # Remove trailing 'USDT' if present
+    if new_coin.endswith("USDT"):
+        new_coin = new_coin[:-4]
+    
+    if new_coin == "":
+        return "Please provide a valid coin symbol (e.g., 'XXX' without 'USDT')."
 
     with open(PREFERENCES_FILE, 'r') as file:
         lines = file.readlines()
@@ -71,8 +80,4 @@ def update_favorite_coin(old_coin: str, new_coin: str):
         file.writelines(new_lines)
         
     if coin_added:
-        return f"{new_coin} coin added to fav coin list"
-
-
-ret = set_preference("soft_risk", "10")
-print(ret)
+        return f"{new_coin} coin added to fav coin list please restart the application to see the changes"

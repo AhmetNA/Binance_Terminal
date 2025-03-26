@@ -79,8 +79,6 @@ def load_user_preferences():
     data = load_fav_coins()
     Fav_symbols = [coin['symbol'] for coin in data.get('coins', [])]
     SYMBOLS = format_binance_ticker_symbols(Fav_symbols)
-    
-    print(f"Updated SYMBOLS for WebSocket subscription: {SYMBOLS}")
 
 def refresh_coin_price(symbol, new_price):
     """Update favorite coin prices in JSON file."""
@@ -151,7 +149,6 @@ def on_message(ws, message):
 
 def on_open(ws):
     """Handle WebSocket open: subscribe to favorite symbols and any pending dynamic subscriptions."""
-    print("WebSocket connection opened! Subscribing to SYMBOLS + pending...")
 
     # Subscribe to all favorite coins
     initial = {
@@ -169,7 +166,6 @@ def on_open(ws):
             "id": next(id_gen)
         }
         ws.send(json.dumps(pending_msg))
-        print(f"Subscribed pending: {pending_subscriptions}")
         pending_subscriptions.clear()
 
     # Ardından queue’daki dinamik coin’leri gönder
@@ -224,10 +220,10 @@ def subscribe_to_dynamic_coin(symbol_name):
             print(f"Subscribed to {pair}")
         except websocket.WebSocketConnectionClosedException:
             pending_subscriptions.append(pair)
-            print(f"Socket kapalı → queue’ye eklendi: {pair}")
+            print(f"Socket closed -> added to queue: {pair}")
     else:
         pending_subscriptions.append(pair)
-        print(f"WebSocket hazır değil → queue’ye eklendi: {pair}")
+        print(f"WebSocket is not ready → added to the queue: {pair}")
 
 def start_price_websocket():
     load_user_preferences()
