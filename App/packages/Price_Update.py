@@ -24,6 +24,7 @@ import os
 
 pending_subscriptions = []
 
+ssl_options = {"ssl_version": ssl.PROTOCOL_TLSv1_2}
 
 """ FAVORITE COINS """
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -36,23 +37,35 @@ PREFERENCES_FILE = os.path.join(SETTINGS_DIR, 'Preferences.txt')
 FAV_COINS_FILE = os.path.join(SETTINGS_DIR, 'fav_coins.json')
 
 BINANCE_WS_URL = "wss://stream.binance.com:9443/ws"
-
 def load_fav_coins():
-    """Load favorite coins data from JSON file."""
+    """
+    @brief Load favorite coins data from the JSON configuration file.
+    @return Dictionary containing 'coins' and 'dynamic_coin' entries.
+    """
     if not os.path.exists(FAV_COINS_FILE):
-        return {"coins": [], "dynamic_coin": []}  # Default structure
-
+        return {"coins": [], "dynamic_coin": []}
     with open(FAV_COINS_FILE, 'r') as file:
         return json.load(file)
 
+
 def write_favorite_coins_to_json(data):
-    """Save favorite coins data to JSON file."""
+    """
+    @brief Write the updated favorite coins data back to the JSON configuration file.
+    @param data Dictionary containing updated coin data to be saved.
+    @return None
+    """
     with open(FAV_COINS_FILE, 'w') as file:
         json.dump(data, file, indent=4)
 
+
 def load_user_preferences():
-    """Read Preferences.txt and update favorite coins, then update subscription symbols."""
-    global SYMBOLS  # Ensure SYMBOLS is updated after preferences are loaded
+    """
+    @brief Reads the Preferences.txt file and updates the favorite coins accordingly.
+    @details It updates the 'symbol' and 'name' fields for favorite coins
+             and formats the SYMBOLS list for Binance WebSocket subscription.
+    @return None
+    """
+    global SYMBOLS
 
     if not os.path.exists(PREFERENCES_FILE):
         print("Preferences file not found!")
@@ -75,13 +88,18 @@ def load_user_preferences():
 
                 write_favorite_coins_to_json(data)
 
-    # Reload SYMBOLS after updating preferences
     data = load_fav_coins()
     Fav_symbols = [coin['symbol'] for coin in data.get('coins', [])]
     SYMBOLS = format_binance_ticker_symbols(Fav_symbols)
 
+
 def refresh_coin_price(symbol, new_price):
-    """Update favorite coin prices in JSON file."""
+    """
+    @brief Update the price of a favorite coin in the JSON file.
+    @param symbol The coin symbol (e.g., BTCUSDT).
+    @param new_price The latest price to update.
+    @return None
+    """
     data = load_fav_coins()
     for coin in data.get('coins', []):
         if coin['symbol'].lower() == symbol.lower():
@@ -89,16 +107,27 @@ def refresh_coin_price(symbol, new_price):
             break
     write_favorite_coins_to_json(data)
 
+
 def refresh_dynamic_coin_price(symbol, new_price):
-    """Update dynamic coin price in JSON file."""
+    """
+    @brief Update the price of the dynamic coin in the JSON file.
+    @param symbol The coin symbol (e.g., BTCUSDT).
+    @param new_price The latest price to update.
+    @return None
+    """
     data = load_fav_coins()
     if isinstance(data.get('dynamic_coin', []), list) and data['dynamic_coin']:
         data['dynamic_coin'][0]['symbol'] = symbol.upper()
         data['dynamic_coin'][0]['values']['current'] = new_price
     write_favorite_coins_to_json(data)
 
+
 def set_dynamic_coin_symbol(symbol):
-    """Add a new dynamic coin."""
+    """
+    @brief Set a new dynamic coin symbol and subscribe to its ticker.
+    @param symbol The coin symbol entered by the user (without USDT).
+    @return None
+    """
     symbol = symbol.upper()
     symbol = f"{symbol}USDT"
     data = load_fav_coins()
@@ -108,19 +137,16 @@ def set_dynamic_coin_symbol(symbol):
         write_favorite_coins_to_json(data)
         subscribe_to_dynamic_coin(symbol)
 
-""" SYMBOLS """
+
 def format_binance_ticker_symbols(symbols):
-    """Convert symbols to Binance WebSocket ticker format."""
+    """
+    @brief Format coin symbols for Binance WebSocket ticker stream.
+    @param symbols List of coin symbols like ['BTCUSDT', 'ETHUSDT'].
+    @return List of formatted symbols like ['btcusdt@ticker'].
+    """
     return [symbol.lower() + "@ticker" for symbol in symbols]
 
-# Load symbols at the start
-data = load_fav_coins()
-Fav_symbols = [coin['symbol'] for coin in data.get('coins', [])]
-SYMBOLS = format_binance_ticker_symbols(Fav_symbols)
 
-""" WEBSOCKET CONNECTION """
-
-# ID generator for each subscription
 def id_generator():
     """Generate unique IDs for WebSocket messages."""
     n = 1
@@ -131,26 +157,30 @@ def id_generator():
 id_gen = id_generator()
 
 def on_message(ws, message):
-    """Handle incoming WebSocket messages."""
+    """
+    @brief WebSocket message handler. Updates coin prices on price update.
+    @param ws WebSocket object.
+    @param message JSON-formatted message received from Binance WebSocket.
+    @return None
+    """
     data = json.loads(message)
     symbol = data['s']
     new_price = float(data['c'])
 
-    # Update favorite coins
     if symbol.lower() in [coin['symbol'].lower() for coin in load_fav_coins().get('coins', [])]:
         refresh_coin_price(symbol, new_price)
 
-    # Update dynamic coin
     dynamic_coin = load_fav_coins().get('dynamic_coin', [])
     if isinstance(dynamic_coin, list) and dynamic_coin and symbol.lower() == dynamic_coin[0]['symbol'].lower():
         refresh_dynamic_coin_price(symbol, new_price)
 
 
-
 def on_open(ws):
-    """Handle WebSocket open: subscribe to favorite symbols and any pending dynamic subscriptions."""
-
-    # Subscribe to all favorite coins
+    """
+    @brief WebSocket connection open handler. Subscribes to favorite coins and any queued dynamic coins.
+    @param ws WebSocket object.
+    @return None
+    """
     initial = {
         "method": "SUBSCRIBE",
         "params": SYMBOLS,
@@ -158,7 +188,6 @@ def on_open(ws):
     }
     ws.send(json.dumps(initial))
 
-    # Subscribe to any queued dynamic coin symbols
     if pending_subscriptions:
         pending_msg = {
             "method": "SUBSCRIBE",
@@ -168,24 +197,25 @@ def on_open(ws):
         ws.send(json.dumps(pending_msg))
         pending_subscriptions.clear()
 
-    # Ardından queue’daki dinamik coin’leri gönder
-    if pending_subscriptions:
-        pending = {
-            "method": "SUBSCRIBE",
-            "params": pending_subscriptions.copy(),
-            "id": next(id_gen)
-        }
-        ws.send(json.dumps(pending))
-        print(f"Subscribed pending: {pending_subscriptions}")
-        pending_subscriptions.clear()
-
 
 def on_close(ws, close_status_code, close_msg):
-    """Handle WebSocket closure."""
+    """
+    @brief WebSocket connection close handler.
+    @param ws WebSocket object.
+    @param close_status_code Status code for closure.
+    @param close_msg Message associated with the closure.
+    @return None
+    """
     print("WebSocket connection closed!")
 
+
 def on_error(ws, error):
-    """Handle WebSocket errors."""
+    """
+    @brief WebSocket error handler.
+    @param ws WebSocket object.
+    @param error Error message or exception.
+    @return None
+    """
     print(f"WebSocket Error: {error}")
 
 ws = websocket.WebSocketApp(
@@ -201,7 +231,10 @@ ssl_options = {"ssl_version": ssl.PROTOCOL_TLSv1_2}
 """ THREADING """
 
 def run_websocket():
-    """Run WebSocket with error handling."""
+    """
+    @brief Continuously run the WebSocket connection with reconnection logic.
+    @return None
+    """
     while True:
         try:
             ws.run_forever(sslopt=ssl_options)
@@ -209,7 +242,13 @@ def run_websocket():
             print(f"WebSocket Error: {e}. Reconnecting in 5 seconds...")
             time.sleep(5)
 
+
 def subscribe_to_dynamic_coin(symbol_name):
+    """
+    @brief Subscribe to a dynamic coin symbol via WebSocket.
+    @param symbol_name Coin symbol (e.g., 'BTC', 'ETH') without 'USDT'.
+    @return None
+    """
     base = symbol_name.upper().replace("USDT", "")
     pair = f"{base.lower()}usdt@ticker"
     msg = {"method": "SUBSCRIBE", "params": [pair], "id": next(id_gen)}
@@ -225,7 +264,12 @@ def subscribe_to_dynamic_coin(symbol_name):
         pending_subscriptions.append(pair)
         print(f"WebSocket is not ready → added to the queue: {pair}")
 
+
 def start_price_websocket():
+    """
+    @brief Start the WebSocket connection in a background thread after loading preferences.
+    @return None
+    """
     load_user_preferences()
     thread = threading.Thread(target=run_websocket, daemon=True)
     thread.start()
@@ -233,8 +277,11 @@ def start_price_websocket():
 
 
 def main():
-    """Main function to start the WebSocket connection with updated preferences."""
-    load_user_preferences()  # Load preferences before starting
+    """
+    @brief Entry point for running the WebSocket process.
+    @return None
+    """
+    load_user_preferences()
     thread = threading.Thread(target=run_websocket, daemon=True)
     thread.start()
     thread.join()

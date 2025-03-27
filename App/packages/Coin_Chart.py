@@ -20,28 +20,25 @@ Functions:
 import pandas as pd
 
 
-
-
-
 def fetch_1m_candles(symbol="BTCUSDT", limit=50):
     """
-    Binance'den belirtilen sembol için 1 dakikalık 50 mum verisi getirir.
+    Retrieves 1-minute candlestick data for the specified symbol from Binance.
     """
     url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1m&limit={limit}"
     response = requests.get(url)
-    # Gelen veriyi JSON olarak döndürür
+    # Returns the received data as JSON
     return response.json()
 
 def format_candle_data(candles):
     """
-    Ham mum verilerini uygun sütun isimleri ve veri tiplerine sahip DataFrame'e dönüştürür.
+    Converts raw candlestick data into a DataFrame with appropriate column names and data types.
     """
     columns = [
         "open_time", "Open", "High", "Low", "Close", "Volume",
         "close_time", "quote_asset_volume", "number_of_trades",
         "taker_buy_base_asset_volume", "taker_buy_quote_asset_volume", "ignore"
     ]
-    # DataFrame oluşturulurken beklenen sütun sayısı ile API'den gelen verinin sütun sayısının eşleştiğinden emin olun.
+    # Ensure the number of columns in the DataFrame matches the number of columns in the API response.
     df = pd.DataFrame(candles, columns=columns)
     df["open_time"] = pd.to_datetime(df["open_time"], unit="ms")
     for col in ["Open", "High", "Low", "Close", "Volume"]:
@@ -50,9 +47,9 @@ def format_candle_data(candles):
     return df
 
 def get_chart_data(symbol="BTCUSDT"):
-    # API çağrısını yalnızca bir kez yapıp sonucu bir değişkende saklıyoruz.
+    # Make the API call only once and store the result in a variable.
     candles = fetch_1m_candles(symbol)
     if not candles or not isinstance(candles, list):
-        raise ValueError("API'den beklenmeyen formatta veri alındı.")
+        raise ValueError("Unexpected data format received from the API.")
     df = format_candle_data(candles)
     return df

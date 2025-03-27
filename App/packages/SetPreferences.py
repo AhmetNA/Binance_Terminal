@@ -2,6 +2,15 @@ from .Order_Func import PREFERENCES_FILE  # Definition of the Preferences.txt fi
 
 def set_preference(key: str, new_value: str):
     """
+    @brief Updates or adds a preference in the Preferences.txt file.
+
+    @param key: The preference key to be updated or added (e.g., soft_risk, hard_risk, accepted_price_volatility).
+    @param new_value: The new value to set for the given preference key.
+
+    @return A string indicating the result:
+            - If the preference is updated or added, returns a confirmation string.
+            - If the preference value is already equal to new_value, returns a string indicating that.
+    
     Finds the line with `key` in Preferences.txt and changes its value to `new_value`.
     Key examples: soft_risk, hard_risk, accepted_price_volatility
 
@@ -36,6 +45,22 @@ def set_preference(key: str, new_value: str):
 
 def update_favorite_coin(old_coin: str, new_coin: str):
     """
+    @brief
+    Updates the favorite coin list in the Preferences.txt file by replacing an old coin with a new one
+    or appending the new coin if the old coin is not found. Ensures the new coin is not duplicated in the list.
+    @param old_coin: str
+        The coin symbol to be replaced in the favorite coin list. Provide the symbol without the 'USDT' suffix.
+        Example: 'BTC' instead of 'BTCUSDT'.
+    @param new_coin: str
+        The new coin symbol to replace the old coin or to be added to the favorite coin list.
+        Provide the symbol without the 'USDT' suffix. Example: 'ETH' instead of 'ETHUSDT'.
+    @return: str
+        A message indicating the result of the operation:
+        - "The coin is already on the fav coin list" if the new coin is already in the list.
+        - "<new_coin> coin added to fav coin list please restart the application to see the changes"
+          if the new coin is successfully added or replaced.
+        - "Please provide a valid coin symbol (e.g., 'XXX' without 'USDT')." if the new coin is invalid.
+    
     In the favorite_coins line in Preferences.txt, find old_coin
     and replace it with new_coin (preserving the order of the other coins).
     If new_coin is already in the list, return "The coin is already on the fav coin list".

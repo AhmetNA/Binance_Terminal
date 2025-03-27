@@ -6,6 +6,10 @@ from .Price_Update import *
 from .Coin_Chart import *
 from .SetPreferences import *
 
+import matplotlib.pyplot as plt
+import mplfinance as mpf  # for candlestick charts
+import matplotlib.patches as mpatches
+
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
@@ -15,8 +19,6 @@ from PySide6.QtWidgets import (
 
 from PySide6.QtCore import Qt, QTimer
 import threading
-
-
 
 class MainWindow(QMainWindow):
     def __init__(self, client):
@@ -46,21 +48,21 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("GAIN")
         self.resize(750, 400)
 
-        
+        # Initialize lists to store buttons for favorite coins and dynamic coin
         self.fav_coin_buttons = []
         self.dyn_coin_button = None
-        
+
+        # Set up the central widget and main layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(5)
-        
-        # ÜST KISIM: Favori Coin Paneli + Dinamik Coin Paneli + (Cüzdan + Coin Entry)
+
+        # TOP SECTION: Favorite Coin Panel + Dynamic Coin Panel + (Wallet + Coin Entry)
         top_layout = QHBoxLayout()
         main_layout.addLayout(top_layout)
 
-        
         """Fav Coin Panel"""
         fav_coin_group = QGroupBox()
         fav_coin_group.setMinimumSize(430, 250)
@@ -74,20 +76,21 @@ class MainWindow(QMainWindow):
         fav_coin_layout = QGridLayout(fav_coin_group)
         fav_coin_layout.setContentsMargins(5, 5, 5, 5)
         fav_coin_layout.setSpacing(5)
-        # Ortak buton stilleri
-        hard_buy_style   = (
+
+        # Define common button styles for different operations
+        hard_buy_style = (
             "QPushButton { background-color: darkgreen; color: white; border-radius: 8px; min-height: 30px; }"
             "QPushButton:hover { background-color: blue; }"
         )
-        soft_buy_style   = (
+        soft_buy_style = (
             "QPushButton { background-color: #089000; color: white; border-radius: 8px; min-height: 30px; }"
             "QPushButton:hover { background-color: blue; }"
         )
-        soft_sell_style  = (
+        soft_sell_style = (
             "QPushButton { background-color: #800000; color: white; border-radius: 8px; min-height: 30px; }"
             "QPushButton:hover { background-color: blue; }"
         )
-        hard_sell_style  = (
+        hard_sell_style = (
             "QPushButton { background-color: #400000; color: white; border-radius: 8px; min-height: 30px; }"
             "QPushButton:hover { background-color: blue; }"
         )
@@ -95,44 +98,50 @@ class MainWindow(QMainWindow):
             "QPushButton { background-color: gray; color: white; border-radius: 8px; min-height: 50px; }"
             "QPushButton:hover { background-color: blue; }"
         )
-        # Satır 0: Hard Buy
+
+        # Row 0: Hard Buy buttons
         for col in range(5):
             btn = QPushButton("Hard Buy")
             btn.setStyleSheet(hard_buy_style)
+            # Connect button to order_buttons function with "Hard_Buy" style
             btn.clicked.connect(lambda _, c=col: order_buttons(self, "Hard_Buy", c))
             fav_coin_layout.addWidget(btn, 0, col)
-        
-        # Satır 1: Soft Buy
+
+        # Row 1: Soft Buy buttons
         for col in range(5):
             btn = QPushButton("Soft Buy")
             btn.setStyleSheet(soft_buy_style)
+            # Connect button to order_buttons function with "Soft_Buy" style
             btn.clicked.connect(lambda _, c=col: order_buttons(self, "Soft_Buy", c))
             fav_coin_layout.addWidget(btn, 1, col)
-        
-        # Satır 2: Coin etiket butonları (JSON'dan alınan isim ve fiyat)
+
+        # Row 2: Coin label buttons (names and prices fetched from JSON)
         for col in range(5):
             btn = QPushButton(f"COIN_{col}\n0.00")
             btn.setStyleSheet(coin_label_style)
+            # Connect button to show_coin_details function to display coin chart
             btn.clicked.connect(lambda _, b=btn: self.show_coin_details(b))
             fav_coin_layout.addWidget(btn, 2, col)
             self.fav_coin_buttons.append(btn)
-        
-        # Satır 3: Soft Sell
+
+        # Row 3: Soft Sell buttons
         for col in range(5):
             btn = QPushButton("Soft Sell")
             btn.setStyleSheet(soft_sell_style)
+            # Connect button to order_buttons function with "Soft_Sell" style
             btn.clicked.connect(lambda _, c=col: order_buttons(self, "Soft_Sell", c))
             fav_coin_layout.addWidget(btn, 3, col)
-        
-        # Satır 4: Hard Sell
+
+        # Row 4: Hard Sell buttons
         for col in range(5):
             btn = QPushButton("Hard Sell")
             btn.setStyleSheet(hard_sell_style)
+            # Connect button to order_buttons function with "Hard_Sell" style
             btn.clicked.connect(lambda _, c=col: order_buttons(self, "Hard_Sell", c))
             fav_coin_layout.addWidget(btn, 4, col)
-        
+
         top_layout.addWidget(fav_coin_group)
-        
+
         """Dynamic Coin Panel"""
         dyn_coin_group = QGroupBox()
         dyn_coin_group.setMinimumSize(100, 20)
@@ -146,42 +155,43 @@ class MainWindow(QMainWindow):
         dyn_coin_layout = QVBoxLayout(dyn_coin_group)
         dyn_coin_layout.setContentsMargins(5, 5, 5, 5)
         dyn_coin_layout.setSpacing(5)
-        
+
+        # Dynamic coin buttons for buy/sell operations
         btn_dyn_hard_buy = QPushButton("Hard Buy")
         btn_dyn_hard_buy.setStyleSheet(hard_buy_style)
         btn_dyn_hard_buy.clicked.connect(lambda _, c=6: order_buttons(self, "Hard_Buy", c))
         dyn_coin_layout.addWidget(btn_dyn_hard_buy)
-        
+
         btn_dyn_soft_buy = QPushButton("Soft Buy")
         btn_dyn_soft_buy.setStyleSheet(soft_buy_style)
         btn_dyn_soft_buy.clicked.connect(lambda _, c=6: order_buttons(self, "Soft_Buy", c))
         dyn_coin_layout.addWidget(btn_dyn_soft_buy)
-        
-        # Dinamik coin etiket butonu (JSON'dan alınan isim ve fiyat)
+
+        # Dynamic coin label button (name and price fetched from JSON)
         self.dyn_coin_button = QPushButton("DYN_COIN\n0.00")
         self.dyn_coin_button.setStyleSheet(coin_label_style)
         self.dyn_coin_button.clicked.connect(lambda _, b=self.dyn_coin_button: self.show_coin_details(b))
         dyn_coin_layout.addWidget(self.dyn_coin_button)
-        
+
         btn_dyn_soft_sell = QPushButton("Soft Sell")
         btn_dyn_soft_sell.setStyleSheet(soft_sell_style)
         btn_dyn_soft_sell.clicked.connect(lambda _, c=6: order_buttons(self, "Soft_Sell", c))
         dyn_coin_layout.addWidget(btn_dyn_soft_sell)
-        
+
         btn_dyn_hard_sell = QPushButton("Hard Sell")
         btn_dyn_hard_sell.setStyleSheet(hard_sell_style)
         btn_dyn_hard_sell.clicked.connect(lambda _, c=6: order_buttons(self, "Hard_Sell", c))
         dyn_coin_layout.addWidget(btn_dyn_hard_sell)
-        
+
         top_layout.addWidget(dyn_coin_group)
-        
+
         """Wallet and Coin Entry Panel"""
         right_side_layout = QVBoxLayout()
         right_side_layout.setSpacing(10)
-                
-                # ► Wallet Frame’ı küçült ve Settings butonunu içine ekle
+
+        # Wallet Frame with Settings button and wallet balance
         wallet_frame = QFrame()
-        wallet_frame.setFixedSize(200, 100)  # küçültülmüş yükseklik
+        wallet_frame.setFixedSize(200, 100)  # reduced height
         wallet_frame.setStyleSheet("""
             QFrame {
             background-color: #089000;
@@ -189,24 +199,24 @@ class MainWindow(QMainWindow):
             border-radius: 15px;
             }
         """)
-        # Wallet Frame’in içindeki layout’ı vertical hizada ortalayalım:
         wallet_layout = QVBoxLayout(wallet_frame)
         wallet_layout.setContentsMargins(5, 5, 5, 5)
-        wallet_layout.setAlignment(Qt.AlignCenter)  # ⭐ Ortalamayı sağlar
+        wallet_layout.setAlignment(Qt.AlignCenter)  # Center-align layout
 
-        # Settings butonu en üste ortalı
+        # Settings button at the top of the wallet frame
         btn_settings = QPushButton("Settings")
         btn_settings.setFixedSize(70, 25)
         btn_settings.clicked.connect(self.open_settings)
-        wallet_layout.addWidget(btn_settings, alignment=Qt.AlignHCenter)  # ⭐ Yatayda ortala
+        wallet_layout.addWidget(btn_settings, alignment=Qt.AlignHCenter)
 
-        # Wallet bilgisi onun altında ortada
+        # Wallet balance label
         self.lbl_wallet = QLabel("Wallet\n$0.00")
         self.lbl_wallet.setAlignment(Qt.AlignCenter)
         wallet_layout.addWidget(self.lbl_wallet, alignment=Qt.AlignHCenter)
 
         right_side_layout.addWidget(wallet_frame)
-                
+
+        # Coin Entry Frame for submitting new coins
         entry_frame = QFrame()
         entry_frame.setFixedSize(200, 80)
         entry_frame.setStyleSheet("""
@@ -235,8 +245,8 @@ class MainWindow(QMainWindow):
         right_side_layout.addWidget(entry_frame)
         top_layout.addLayout(right_side_layout)
 
-        
         """Terminal"""
+        # Terminal for displaying logs and messages
         self.terminal = QPlainTextEdit()
         self.terminal.setReadOnly(True)
         self.terminal.setStyleSheet("""
@@ -248,39 +258,40 @@ class MainWindow(QMainWindow):
             }
         """)
         main_layout.addWidget(self.terminal)
-        
-        # To update prices for every second
+
+        # Timer to update coin prices every second
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_coin_prices)
-        self.timer.start(1000)  # 1000 ms = 1 saniye
+        self.timer.start(1000)  # 1000 ms = 1 second
 
-        # To update wallet for every second
+        # Timer to update wallet balance every second
         self.wallet_timer = QTimer(self)
         self.wallet_timer.timeout.connect(self.update_wallet)
-        self.wallet_timer.start(1000)  # 1000 ms = 1 saniye
-
+        self.wallet_timer.start(1000)  # 1000 ms = 1 second
 
     def append_to_terminal(self, text):
+        """Appends text to the terminal."""
         self.terminal.appendPlainText(text)
-    
+
     def submit_coin(self):
+        """Handles coin submission from the input field."""
         coin_name = self.coin_input.text()
         if coin_name:
             set_dynamic_coin_symbol(coin_name)
             self.append_to_terminal(f"New coin submitted: {coin_name}")
         self.coin_input.clear()
 
-    
     def update_coin_prices(self):
+        """Updates the prices of coins displayed on the buttons."""
         try:
-            data = load_fav_coin()  # JSON dosyasını oku
-            # Favori coin butonlarının güncellenmesi
+            data = load_fav_coin()  # Read JSON file
+            # Update favorite coin buttons
             for i, btn in enumerate(self.fav_coin_buttons):
                 coin_data = data['coins'][i]
                 symbol = coin_data.get('symbol', f"COIN_{i}")
                 price = coin_data.get('values', {}).get('current', "0.00")
                 btn.setText(f"{symbol}\n{price}")
-            # Dinamik coin butonunun güncellenmesi
+            # Update dynamic coin button
             dyn_data = data['dynamic_coin'][0]
             symbol = dyn_data.get('symbol', "DYN_COIN")
             price = dyn_data.get('values', {}).get('current', "0.00")
@@ -289,23 +300,20 @@ class MainWindow(QMainWindow):
             self.append_to_terminal(f"Error updating coin prices: {e}")
 
     def update_wallet(self):
+        """Updates the wallet balance displayed in the wallet frame."""
         try:
             available_usdt = retrieve_usdt_balance(self.client)
             self.lbl_wallet.setText(f"Wallet\n${available_usdt:.2f}")
         except Exception as e:
             self.append_to_terminal(f"Error updating wallet: {e}")
 
-    # 2️⃣ MainWindow sınıfına bu metodu ekle
     def open_settings(self):
-        """Settings butonuna tıklayınca yeni pencereyi açar."""
+        """Opens the settings window when the Settings button is clicked."""
         dlg = SettingsWindow(self)
         dlg.exec()
 
-    
     def show_coin_details(self, btn):
-        import matplotlib.pyplot as plt
-        import mplfinance as mpf  # mum grafikler için
-        import matplotlib.patches as mpatches
+        """Displays a candlestick chart for the selected coin."""
         symbol = btn.text().split("\n")[0]
         try:
             df = get_chart_data(symbol)
@@ -315,34 +323,28 @@ class MainWindow(QMainWindow):
 
             plt.style.use('dark_background')
 
-            # Mum grafik için renk ve stil ayarları
+            # Configure candlestick chart style
             mc = mpf.make_marketcolors(up='green', down='red', edge='inherit', wick='inherit')
-            s  = mpf.make_mpf_style(base_mpf_style='nightclouds', marketcolors=mc)
+            s = mpf.make_mpf_style(base_mpf_style='nightclouds', marketcolors=mc)
 
-            # returnfig=True parametresi sayesinde Figure ve Eksen listesi elde ediyoruz
+            # Generate candlestick chart
             fig, axlist = mpf.plot(
                 df, type='candle', style=s, returnfig=True,
                 datetime_format='%H:%M:%S', xrotation=45
             )
-            ax = axlist[0]  # İlk ekseni alıyoruz
+            ax = axlist[0]  # Get the first axis
 
-            # Suptitle ve figür boyutu ayarı (küçük boyutta, fakat coin ismi de gösteriliyor)
+            # Add title and adjust figure size
             fig.suptitle(f"{symbol} Candle Chart", fontsize=12)
             fig.set_size_inches(6, 4)
-            ax = axlist[0]  # İlk ekseni alıyoruz
 
-            # Suptitle ve figür boyutu ayarı
-            fig.suptitle(f"{symbol} Candle Chart", fontsize=16)
-            fig.set_size_inches(6, 4)
-
-            # Genel bilgi kutucuğu (ilk ve son fiyat)
+            # Add general info box with price details
             info_text = (f"First Price: {first_price:.2f}\n"
                          f"Last Price: {last_price:.2f}\n"
                          f"Overall Change: {price_change_pct:.2f}%")
             props = dict(boxstyle='round', facecolor='gray', alpha=0.5)
             ax.text(0.02, 0.98, info_text, transform=ax.transAxes, fontsize=8,
                     verticalalignment='top', bbox=props)
-            
 
             plt.tight_layout()
             plt.show()
@@ -355,53 +357,64 @@ class SettingsWindow(QDialog):
         self.setWindowTitle("Settings")
         self.setMinimumSize(350, 350)
 
-        # Dosyadan prefs oku
+        # Read preferences from the preferences file
         prefs = {}
         with open(PREFERENCES_FILE, 'r') as f:
             for line in f:
+                # Parse lines that contain key-value pairs and are not comments
                 if "=" in line and not line.strip().startswith("#"):
                     key, val = line.split("=", 1)
                     prefs[key.strip()] = val.strip().lstrip("%")
+        
         # Store original preferences to allow change detection
         self.original_prefs = prefs.copy()
 
+        # Set up the layout for the settings window
         layout = QVBoxLayout(self)
         self.pref_edits = {}
+
+        # Add input fields for specific preferences
         for key in ("soft_risk", "hard_risk", "accepted_price_volatility"):
-            layout.addWidget(QLabel(key.replace("_", " ").title()))
-            edit = QLineEdit(prefs.get(key, ""))
+            layout.addWidget(QLabel(key.replace("_", " ").title()))  # Add label for the preference
+            edit = QLineEdit(prefs.get(key, ""))  # Create input field with current value
             self.pref_edits[key] = edit
             layout.addWidget(edit)
 
+        # Add input fields for favorite coins
         layout.addWidget(QLabel("Favorite Coins"))
         self.original_coins = [c.strip() for c in prefs.get("favorite_coins", "").split(",")]
         self.fav_edits = []
         for coin in self.original_coins:
-            edit = QLineEdit(coin)
+            edit = QLineEdit(coin)  # Create input field for each favorite coin
             self.fav_edits.append(edit)
             layout.addWidget(edit)
 
+        # Add a save button to save the settings
         btn_save = QPushButton("Save")
-        btn_save.clicked.connect(self.save_settings)
+        btn_save.clicked.connect(self.save_settings)  # Connect save button to save_settings method
         layout.addWidget(btn_save)
 
     def save_settings(self):
-        # Only update and append info for changed preferences
+        """
+        Save the updated settings and preferences.
+        Only updates and appends information for changed preferences.
+        """
+        # Update preferences if there are changes
         for key, edit in self.pref_edits.items():
             new_val = edit.text().strip()
             if new_val and new_val != self.original_prefs.get(key, ""):
-                msg = set_preference(key, new_val)
-                self.parent().append_to_terminal(msg)
+                msg = set_preference(key, new_val)  # Update the preference
+                self.parent().append_to_terminal(msg)  # Log the update in the terminal
 
         # Check favorite coins one by one and update only if there is a change
         for old, edit in zip(self.original_coins, self.fav_edits):
             new_coin = edit.text().strip().upper()
             if new_coin and new_coin != old:
-                msg = update_favorite_coin(old, new_coin)
-                self.parent().append_to_terminal(msg)
+                msg = update_favorite_coin(old, new_coin)  # Update the favorite coin
+                self.parent().append_to_terminal(msg)  # Log the update in the terminal
 
+        # Close the settings window after saving
         self.accept()
-
 
 
 
@@ -419,50 +432,32 @@ def retrieve_coin_symbol(col):
         return coins[col]['symbol']
     
 def order_buttons(self, style, col):
-    symbol = retrieve_coin_symbol(col)
-    old_balance = retrieve_usdt_balance(self.client)
-    if style == "Hard_Buy":
-        order_paper = make_order("Hard_Buy", symbol)
+    """
+    Handles buy/sell operations for a given coin and style.
+    Parameters:
+        style (str): The type of operation ("Hard_Buy", "Hard_Sell", "Soft_Buy", "Soft_Sell").
+        col (int): The column index of the coin.
+    """
+    try:
+        symbol = retrieve_coin_symbol(col)
+        old_balance = retrieve_usdt_balance(self.client)
+        order_paper = make_order(style, symbol)
+        
         amount = float(order_paper['fills'][0]['qty'])
         price = float(order_paper['fills'][0]['price'])
         cost = amount * price
         new_balance = retrieve_usdt_balance(self.client)
+
+        operation = "Bought" if "Buy" in style else "Sold"
+        action_type = "Hard" if "Hard" in style else "Soft"
+        balance_change = f"Balance: previous {old_balance:.2f} -> current {new_balance:.2f}"
+
         self.append_to_terminal(
-            f"Hard Bought {symbol}: cost {cost} USDT at {price} for {amount}. "
-            f"Balance: previous {old_balance:.2f} -> current {new_balance:.2f}"
+            f"{action_type} {operation} {symbol}: {'cost' if 'Buy' in style else 'received'} {cost:.2f} USDT "
+            f"at {price:.2f} for {amount:.2f}. {balance_change}"
         )
-    elif style == "Hard_Sell":
-        order_paper = make_order("Hard_Sell", symbol)
-        amount = float(order_paper['fills'][0]['qty'])
-        price = float(order_paper['fills'][0]['price'])
-        cost = amount * price
-        new_balance = retrieve_usdt_balance(self.client)
-        self.append_to_terminal(
-            f"Hard Sold {symbol}: received {cost} USDT at {price} for {amount}. "
-            f"Balance: previous {old_balance:.2f} -> current {new_balance:.2f}"
-        )
-    elif style == "Soft_Buy":
-        order_paper = make_order("Soft_Buy", symbol)
-        amount = float(order_paper['fills'][0]['qty'])
-        price = float(order_paper['fills'][0]['price'])
-        cost = amount * price
-        new_balance = retrieve_usdt_balance(self.client)
-        self.append_to_terminal(
-            f"Soft Bought {symbol}: cost {cost} USDT at {price} for {amount}. "
-            f"Balance: previous {old_balance:.2f} -> current {new_balance:.2f}"
-        )
-    elif style == "Soft_Sell":
-        order_paper = make_order("Soft_Sell", symbol)
-        amount = float(order_paper['fills'][0]['qty'])
-        price = float(order_paper['fills'][0]['price'])
-        cost = amount * price
-        new_balance = retrieve_usdt_balance(self.client)
-        self.append_to_terminal(
-            f"Soft Sold {symbol}: received {cost} USDT at {price} for {amount}. "
-            f"Balance: previous {old_balance:.2f} -> current {new_balance:.2f}"
-        )
-    else:
-        self.append_to_terminal("Wrong Style")
+    except Exception as e:
+        self.append_to_terminal(f"Error processing {style} for {symbol}: {e}")
 
 
 
