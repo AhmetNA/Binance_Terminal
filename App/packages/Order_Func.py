@@ -2,14 +2,8 @@ from binance.client import Client
 import time
 from dotenv import load_dotenv
 import os
-
-import ssl
-from requests.adapters import HTTPAdapter
-from urllib3.poolmanager import PoolManager
-import websocket
-import json
 import math
-import requests
+import logging
 
 """
 Order_Func.py
@@ -27,12 +21,6 @@ SETTINGS_DIR = os.path.join(CURRENT_DIR, '..', 'settings')
 PREFERENCES_FILE = os.path.normpath(os.path.join(SETTINGS_DIR, 'Preferences.txt'))
 ENV_FILE = os.path.normpath(os.path.join(SETTINGS_DIR, '.env'))
 
-class TLSAdapter(HTTPAdapter):
-    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
-        import ssl
-        pool_kwargs['ssl_version'] = ssl.PROTOCOL_TLSv1_2
-        return super().init_poolmanager(connections, maxsize, block, **pool_kwargs)
-
 def prepare_client():
     """
     @brief Prepares and returns a Binance API client instance.
@@ -43,9 +31,6 @@ def prepare_client():
     api_secret = os.getenv('BINANCE_API_SECRET')
     client = Client(api_key, api_secret)
     client.API_URL = "https://testnet.binance.vision/api"  # Use Binance testnet
-
-    # TLS 1.2 enforcement
-    client.session.mount('https://', TLSAdapter())
 
     # Time synchronization
     server_time = client.get_server_time()
@@ -171,32 +156,28 @@ def place_BUY_order(client, SYMBOL, BUY_QUANTITY_P):
 
     if "USDT" not in SYMBOL:
         SYMBOL = SYMBOL + "USDT"
-    
     SYMBOL = SYMBOL.upper()
-    
     Total_asset_value_usdt = retrieve_usdt_balance(client) * BUY_QUANTITY_P
     current_price = get_price(client, SYMBOL)
-
     symbol_info = get_symbol_info(client, SYMBOL)
     min_qty = symbol_info['minQty']
     max_qty = symbol_info['maxQty']
     step_size = symbol_info['stepSize']
-    
     QUANTITY = round_quantity((Total_asset_value_usdt / current_price), step_size)
-    
     try:
-        # Create Buy Order
         order = client.create_order(
             symbol=SYMBOL,
             side="BUY",
             type="MARKET",
-            quantity= QUANTITY
+            quantity=QUANTITY
         )
         price = float(order['fills'][0]['price'])
         amount = float(order['fills'][0]['qty'])
         return order
     except Exception as e:
-        print(f"Error: {e}")
+        logging.exception(f"Error placing BUY order for {SYMBOL}: {e}")
+        raise
+
 
 def place_SELL_order(client, SYMBOL, SELL_QUANTITY_P):
     """
@@ -209,31 +190,26 @@ def place_SELL_order(client, SYMBOL, SELL_QUANTITY_P):
     account_data = get_account_data(client)
     if "USDT" not in SYMBOL:
         SYMBOL = SYMBOL + "USDT"
-    
     SYMBOL = SYMBOL.upper()
-
     symbol_info = get_symbol_info(client, SYMBOL)
     min_qty = symbol_info['minQty']
     max_qty = symbol_info['maxQty']
     step_size = symbol_info['stepSize']
-    
     QUANTITY = round_quantity(get_amountOf_asset(client, SYMBOL) * SELL_QUANTITY_P, step_size)
-    
     try:
-        # Create Sell Order
         order = client.create_order(
             symbol=SYMBOL,
             side="SELL",
             type="MARKET",
-            quantity= QUANTITY
+            quantity=QUANTITY
         )
         price = float(order['fills'][0]['price'])
         amount = float(order['fills'][0]['qty'])
         return order
-
     except Exception as e:
-        print(f"Error: {e}")
-  
+        logging.exception(f"Error placing SELL order for {SYMBOL}: {e}")
+        raise
+
 def hard_buy_order(client, SYMBOL):
     """
     @brief Places a hard buy order using the hard risk percentage from preferences.
@@ -305,15 +281,15 @@ def main():
     """
     @brief Main function to demonstrate the order creation process.
     """
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     client = prepare_client()
-
     symbol = "btc"
     price_tolerance = 0.001
-    
-    dolar = retrieve_usdt_balance
-    hard , soft = get_buy_preferences()
-
-    hard_buy_order(client, symbol)
+    hard, soft = get_buy_preferences()
+    try:
+        hard_buy_order(client, symbol)
+    except Exception as e:
+        logging.error(f"Order error: {e}")
     
     
 if __name__ == "__main__":

@@ -19,8 +19,24 @@ import threading
 import time
 import ssl
 import os
+import logging
 
+# Magic strings and constants
+DYNAMIC_COIN_KEY = "dynamic_coin"
+COINS_KEY = "coins"
+USDT = "USDT"
+TICKER_SUFFIX = "@ticker"
+RECONNECT_DELAY = 5  # seconds
 
+# Logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'binance_terminal.log'), encoding='utf-8')
+    ]
+)
 
 pending_subscriptions = []
 
@@ -37,25 +53,31 @@ PREFERENCES_FILE = os.path.join(SETTINGS_DIR, 'Preferences.txt')
 FAV_COINS_FILE = os.path.join(SETTINGS_DIR, 'fav_coins.json')
 
 BINANCE_WS_URL = "wss://stream.binance.com:9443/ws"
+
 def load_fav_coins():
     """
-    @brief Load favorite coins data from the JSON configuration file.
-    @return Dictionary containing 'coins' and 'dynamic_coin' entries.
+    Load favorite coins data from the JSON configuration file.
+    Returns a dictionary containing 'coins' and 'dynamic_coin' entries.
     """
-    if not os.path.exists(FAV_COINS_FILE):
-        return {"coins": [], "dynamic_coin": []}
-    with open(FAV_COINS_FILE, 'r') as file:
-        return json.load(file)
+    try:
+        if not os.path.exists(FAV_COINS_FILE):
+            return {COINS_KEY: [], DYNAMIC_COIN_KEY: []}
+        with open(FAV_COINS_FILE, 'r') as file:
+            return json.load(file)
+    except Exception as e:
+        logging.exception(f"Error loading favorite coins: {e}")
+        return {COINS_KEY: [], DYNAMIC_COIN_KEY: []}
 
 
 def write_favorite_coins_to_json(data):
     """
-    @brief Write the updated favorite coins data back to the JSON configuration file.
-    @param data Dictionary containing updated coin data to be saved.
-    @return None
+    Write the updated favorite coins data back to the JSON configuration file.
     """
-    with open(FAV_COINS_FILE, 'w') as file:
-        json.dump(data, file, indent=4)
+    try:
+        with open(FAV_COINS_FILE, 'w') as file:
+            json.dump(data, file, indent=4)
+    except Exception as e:
+        logging.exception(f"Error writing favorite coins: {e}")
 
 
 def load_user_preferences():
@@ -68,58 +90,61 @@ def load_user_preferences():
     global SYMBOLS
 
     if not os.path.exists(PREFERENCES_FILE):
-        print("Preferences file not found!")
+        logging.warning("Preferences file not found!")
         return
 
-    with open(PREFERENCES_FILE, 'r') as file:
-        for line in file:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
+    try:
+        with open(PREFERENCES_FILE, 'r') as file:
+            for line in file:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
 
-            if line.startswith("favorite_coins"):
-                fav_coins_name = [coin.strip() for coin in line.split("=")[1].split(",")]
-                data = load_fav_coins()
+                if line.startswith("favorite_coins"):
+                    fav_coins_name = [coin.strip() for coin in line.split("=")[1].split(",")]
+                    data = load_fav_coins()
 
-                for i, coin_name in enumerate(fav_coins_name):
-                    if i < len(data.get('coins', [])):
-                        data['coins'][i]['symbol'] = f"{coin_name.upper()}USDT"
-                        data['coins'][i]['name'] = coin_name.upper()
+                    for i, coin_name in enumerate(fav_coins_name):
+                        if i < len(data.get(COINS_KEY, [])):
+                            data[COINS_KEY][i]['symbol'] = f"{coin_name.upper()}{USDT}"
+                            data[COINS_KEY][i]['name'] = coin_name.upper()
 
-                write_favorite_coins_to_json(data)
+                    write_favorite_coins_to_json(data)
 
-    data = load_fav_coins()
-    Fav_symbols = [coin['symbol'] for coin in data.get('coins', [])]
-    SYMBOLS = format_binance_ticker_symbols(Fav_symbols)
+        data = load_fav_coins()
+        Fav_symbols = [coin['symbol'] for coin in data.get(COINS_KEY, [])]
+        SYMBOLS = format_binance_ticker_symbols(Fav_symbols)
+    except Exception as e:
+        logging.exception(f"Error loading user preferences: {e}")
 
 
 def refresh_coin_price(symbol, new_price):
     """
-    @brief Update the price of a favorite coin in the JSON file.
-    @param symbol The coin symbol (e.g., BTCUSDT).
-    @param new_price The latest price to update.
-    @return None
+    Update the price of a favorite coin in the JSON file.
     """
-    data = load_fav_coins()
-    for coin in data.get('coins', []):
-        if coin['symbol'].lower() == symbol.lower():
-            coin['values']['current'] = new_price
-            break
-    write_favorite_coins_to_json(data)
+    try:
+        data = load_fav_coins()
+        for coin in data.get(COINS_KEY, []):
+            if coin['symbol'].lower() == symbol.lower():
+                coin['values']['current'] = new_price
+                break
+        write_favorite_coins_to_json(data)
+    except Exception as e:
+        logging.exception(f"Error refreshing coin price for {symbol}: {e}")
 
 
 def refresh_dynamic_coin_price(symbol, new_price):
     """
-    @brief Update the price of the dynamic coin in the JSON file.
-    @param symbol The coin symbol (e.g., BTCUSDT).
-    @param new_price The latest price to update.
-    @return None
+    Update the price of the dynamic coin in the JSON file.
     """
-    data = load_fav_coins()
-    if isinstance(data.get('dynamic_coin', []), list) and data['dynamic_coin']:
-        data['dynamic_coin'][0]['symbol'] = symbol.upper()
-        data['dynamic_coin'][0]['values']['current'] = new_price
-    write_favorite_coins_to_json(data)
+    try:
+        data = load_fav_coins()
+        if isinstance(data.get(DYNAMIC_COIN_KEY, []), list) and data[DYNAMIC_COIN_KEY]:
+            data[DYNAMIC_COIN_KEY][0]['symbol'] = symbol.upper()
+            data[DYNAMIC_COIN_KEY][0]['values']['current'] = new_price
+        write_favorite_coins_to_json(data)
+    except Exception as e:
+        logging.exception(f"Error refreshing dynamic coin price for {symbol}: {e}")
 
 
 def set_dynamic_coin_symbol(symbol):
@@ -129,11 +154,11 @@ def set_dynamic_coin_symbol(symbol):
     @return None
     """
     symbol = symbol.upper()
-    symbol = f"{symbol}USDT"
+    symbol = f"{symbol}{USDT}"
     data = load_fav_coins()
-    if isinstance(data.get('dynamic_coin', []), list) and data['dynamic_coin']:
-        data['dynamic_coin'][0]['symbol'] = symbol
-        data['dynamic_coin'][0]['name'] = symbol[:-4]
+    if isinstance(data.get(DYNAMIC_COIN_KEY, []), list) and data[DYNAMIC_COIN_KEY]:
+        data[DYNAMIC_COIN_KEY][0]['symbol'] = symbol
+        data[DYNAMIC_COIN_KEY][0]['name'] = symbol[:-len(USDT)]
         write_favorite_coins_to_json(data)
         subscribe_to_dynamic_coin(symbol)
 
@@ -144,7 +169,7 @@ def format_binance_ticker_symbols(symbols):
     @param symbols List of coin symbols like ['BTCUSDT', 'ETHUSDT'].
     @return List of formatted symbols like ['btcusdt@ticker'].
     """
-    return [symbol.lower() + "@ticker" for symbol in symbols]
+    return [symbol.lower() + TICKER_SUFFIX for symbol in symbols]
 
 
 def id_generator():
@@ -169,16 +194,16 @@ def on_message(ws, message):
             symbol = data['s']
             new_price = float(data['c'])
 
-            if symbol.lower() in [coin['symbol'].lower() for coin in load_fav_coins().get('coins', [])]:
+            if symbol.lower() in [coin['symbol'].lower() for coin in load_fav_coins().get(COINS_KEY, [])]:
                 refresh_coin_price(symbol, new_price)
 
-            dynamic_coin = load_fav_coins().get('dynamic_coin', [])
+            dynamic_coin = load_fav_coins().get(DYNAMIC_COIN_KEY, [])
             if isinstance(dynamic_coin, list) and dynamic_coin and symbol.lower() == dynamic_coin[0]['symbol'].lower():
                 refresh_dynamic_coin_price(symbol, new_price)
         else:
-            print(f"WebSocket message does not contain 's' or 'c': {data}")
+            logging.warning(f"WebSocket message does not contain 's' or 'c': {data}")
     except Exception as e:
-        print(f"WebSocket Error: {e}")
+        logging.exception(f"WebSocket Error: {e}")
 
 
 def on_open(ws):
@@ -212,7 +237,7 @@ def on_close(ws, close_status_code, close_msg):
     @param close_msg Message associated with the closure.
     @return None
     """
-    print("WebSocket connection closed!")
+    logging.info("WebSocket connection closed!")
 
 
 def on_error(ws, error):
@@ -222,7 +247,7 @@ def on_error(ws, error):
     @param error Error message or exception.
     @return None
     """
-    print(f"WebSocket Error: {error}")
+    logging.error(f"WebSocket Error: {error}")
 
 ws = websocket.WebSocketApp(
     BINANCE_WS_URL,
@@ -238,15 +263,14 @@ ssl_options = {"ssl_version": ssl.PROTOCOL_TLSv1_2}
 
 def run_websocket():
     """
-    @brief Continuously run the WebSocket connection with reconnection logic.
-    @return None
+    Continuously run the WebSocket connection with reconnection logic.
     """
     while True:
         try:
             ws.run_forever(sslopt=ssl_options)
         except Exception as e:
-            print(f"WebSocket Error: {e}. Reconnecting in 5 seconds...")
-            time.sleep(5)
+            logging.error(f"WebSocket Error: {e}. Reconnecting in {RECONNECT_DELAY} seconds...")
+            time.sleep(RECONNECT_DELAY)
 
 
 def subscribe_to_dynamic_coin(symbol_name):
@@ -255,20 +279,20 @@ def subscribe_to_dynamic_coin(symbol_name):
     @param symbol_name Coin symbol (e.g., 'BTC', 'ETH') without 'USDT'.
     @return None
     """
-    base = symbol_name.upper().replace("USDT", "")
-    pair = f"{base.lower()}usdt@ticker"
+    base = symbol_name.upper().replace(USDT, "")
+    pair = f"{base.lower()}{USDT.lower()}{TICKER_SUFFIX}"
     msg = {"method": "SUBSCRIBE", "params": [pair], "id": next(id_gen)}
 
     if ws.sock and getattr(ws.sock, "connected", False):
         try:
             ws.send(json.dumps(msg))
-            print(f"Subscribed to {pair}")
+            logging.info(f"Subscribed to {pair}")
         except websocket.WebSocketConnectionClosedException:
             pending_subscriptions.append(pair)
-            print(f"Socket closed -> added to queue: {pair}")
+            logging.warning(f"Socket closed -> added to queue: {pair}")
     else:
         pending_subscriptions.append(pair)
-        print(f"WebSocket is not ready → added to the queue: {pair}")
+        logging.warning(f"WebSocket is not ready → added to the queue: {pair}")
 
 
 def start_price_websocket():
@@ -279,7 +303,7 @@ def start_price_websocket():
     load_user_preferences()
     thread = threading.Thread(target=run_websocket, daemon=True)
     thread.start()
-    print("WebSocket started in background.")
+    logging.info("WebSocket started in background.")
 
 
 def main():
