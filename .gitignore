@@ -1,2 +1,22 @@
-app/settings/.env
+# Python cache ve derleme dosyaları
+__pycache__/
+*.pyc
+
+# Ortam değişkenleri
+App/settings/.env
+.env
+
+# Log dosyaları
 binance_terminal.log
+App/binance_terminal.log
+*.log
+
+# VSCode çalışma alanı ve geçici dosyalar
+workspace.code-workspace
+tempCodeRunnerFile.py
+App/packages/tempCodeRunnerFile.py
+
+# Kişisel/örnek ayar dosyaları
+App/settings/fav_coin_example.json
+
+# Diğer gereksiz dosyalar
