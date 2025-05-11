@@ -163,16 +163,22 @@ def on_message(ws, message):
     @param message JSON-formatted message received from Binance WebSocket.
     @return None
     """
-    data = json.loads(message)
-    symbol = data['s']
-    new_price = float(data['c'])
+    try:
+        data = json.loads(message)
+        if 's' in data and 'c' in data:
+            symbol = data['s']
+            new_price = float(data['c'])
 
-    if symbol.lower() in [coin['symbol'].lower() for coin in load_fav_coins().get('coins', [])]:
-        refresh_coin_price(symbol, new_price)
+            if symbol.lower() in [coin['symbol'].lower() for coin in load_fav_coins().get('coins', [])]:
+                refresh_coin_price(symbol, new_price)
 
-    dynamic_coin = load_fav_coins().get('dynamic_coin', [])
-    if isinstance(dynamic_coin, list) and dynamic_coin and symbol.lower() == dynamic_coin[0]['symbol'].lower():
-        refresh_dynamic_coin_price(symbol, new_price)
+            dynamic_coin = load_fav_coins().get('dynamic_coin', [])
+            if isinstance(dynamic_coin, list) and dynamic_coin and symbol.lower() == dynamic_coin[0]['symbol'].lower():
+                refresh_dynamic_coin_price(symbol, new_price)
+        else:
+            print(f"WebSocket message does not contain 's' or 'c': {data}")
+    except Exception as e:
+        print(f"WebSocket Error: {e}")
 
 
 def on_open(ws):

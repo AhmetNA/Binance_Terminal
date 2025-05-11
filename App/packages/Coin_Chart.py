@@ -1,14 +1,14 @@
 import requests
 
 """
-This module retrieves and formats 1-minute candlestick data from the Binance API.
+This module retrieves and formats candlestick data from the Binance API.
 It contains functions to fetch raw candle data, convert that data into a structured
 pandas DataFrame with appropriate column names and data types, and provide the
 final chart-ready data for further analysis.
 Functions:
-    fetch_1m_candles(symbol="BTCUSDT", limit=50):
-        Makes an HTTP GET request to Binance API to obtain the latest 1-minute candlestick
-        data for the given trading symbol. Returns the raw JSON data from the API.
+    fetch_candles(symbol="BTCUSDT", interval="1m", limit=50):
+        Makes an HTTP GET request to Binance API to obtain the latest candlestick
+        data for the given trading symbol and interval. Returns the raw JSON data from the API.
     format_candle_data(candles):
         Takes the raw candlestick JSON data and converts it into a pandas DataFrame.
         It assigns predefined column names, converts the timestamp to datetime,
@@ -20,14 +20,26 @@ Functions:
 import pandas as pd
 
 
-def fetch_1m_candles(symbol="BTCUSDT", limit=50):
+def fetch_candles(symbol="BTCUSDT", interval="1m", limit=50):
     """
-    Retrieves 1-minute candlestick data for the specified symbol from Binance.
+    Retrieves candlestick data for the specified symbol and interval from Binance.
     """
-    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1m&limit={limit}"
-    response = requests.get(url)
-    # Returns the received data as JSON
-    return response.json()
+    import logging
+    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            logging.error(f"API error {response.status_code} while fetching candles for {symbol}.")
+            return []
+    except requests.exceptions.Timeout:
+        logging.error(f"Timeout error while fetching candles for {symbol}.")
+        return []
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Request error while fetching candles for {symbol}: {e}")
+        return []
+
 
 def format_candle_data(candles):
     """
@@ -48,7 +60,7 @@ def format_candle_data(candles):
 
 def get_chart_data(symbol="BTCUSDT"):
     # Make the API call only once and store the result in a variable.
-    candles = fetch_1m_candles(symbol)
+    candles = fetch_candles(symbol)
     if not candles or not isinstance(candles, list):
         raise ValueError("Unexpected data format received from the API.")
     df = format_candle_data(candles)

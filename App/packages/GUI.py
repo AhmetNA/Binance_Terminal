@@ -20,6 +20,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer
 import threading
 
+FAVORITE_COIN_COUNT = 5
+DYNAMIC_COIN_INDEX = 6
+
 class MainWindow(QMainWindow):
     def __init__(self, client):
         """
@@ -47,23 +50,29 @@ class MainWindow(QMainWindow):
         self.client = client
         self.setWindowTitle("GAIN")
         self.resize(750, 400)
-
-        # Initialize lists to store buttons for favorite coins and dynamic coin
         self.fav_coin_buttons = []
         self.dyn_coin_button = None
+        self.setup_ui()
 
+    def setup_ui(self):
         # Set up the central widget and main layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(5)
+        self.setup_top_section(main_layout)
+        self.setup_terminal(main_layout)
+        self.setup_timers()
 
-        # TOP SECTION: Favorite Coin Panel + Dynamic Coin Panel + (Wallet + Coin Entry)
+    def setup_top_section(self, main_layout):
         top_layout = QHBoxLayout()
         main_layout.addLayout(top_layout)
+        self.setup_fav_coin_panel(top_layout)
+        self.setup_dynamic_coin_panel(top_layout)
+        self.setup_wallet_and_entry_panel(top_layout)
 
-        """Fav Coin Panel"""
+    def setup_fav_coin_panel(self, top_layout):
         fav_coin_group = QGroupBox()
         fav_coin_group.setMinimumSize(430, 250)
         fav_coin_group.setStyleSheet("""
@@ -76,7 +85,6 @@ class MainWindow(QMainWindow):
         fav_coin_layout = QGridLayout(fav_coin_group)
         fav_coin_layout.setContentsMargins(5, 5, 5, 5)
         fav_coin_layout.setSpacing(5)
-
         # Define common button styles for different operations
         hard_buy_style = (
             "QPushButton { background-color: darkgreen; color: white; border-radius: 8px; min-height: 30px; }"
@@ -98,51 +106,36 @@ class MainWindow(QMainWindow):
             "QPushButton { background-color: gray; color: white; border-radius: 8px; min-height: 50px; }"
             "QPushButton:hover { background-color: blue; }"
         )
-
         # Row 0: Hard Buy buttons
-        for col in range(5):
-            btn = QPushButton("Hard Buy")
-            btn.setStyleSheet(hard_buy_style)
-            # Connect button to order_buttons function with "Hard_Buy" style
-            btn.clicked.connect(lambda _, c=col: order_buttons(self, "Hard_Buy", c))
+        for col in range(FAVORITE_COIN_COUNT):
+            btn = self.create_order_button("Hard Buy", hard_buy_style, lambda _, c=col: order_buttons(self, "Hard_Buy", c))
             fav_coin_layout.addWidget(btn, 0, col)
-
         # Row 1: Soft Buy buttons
-        for col in range(5):
-            btn = QPushButton("Soft Buy")
-            btn.setStyleSheet(soft_buy_style)
-            # Connect button to order_buttons function with "Soft_Buy" style
-            btn.clicked.connect(lambda _, c=col: order_buttons(self, "Soft_Buy", c))
+        for col in range(FAVORITE_COIN_COUNT):
+            btn = self.create_order_button("Soft Buy", soft_buy_style, lambda _, c=col: order_buttons(self, "Soft_Buy", c))
             fav_coin_layout.addWidget(btn, 1, col)
-
-        # Row 2: Coin label buttons (names and prices fetched from JSON)
-        for col in range(5):
-            btn = QPushButton(f"COIN_{col}\n0.00")
-            btn.setStyleSheet(coin_label_style)
-            # Connect button to show_coin_details function to display coin chart
-            btn.clicked.connect(lambda _, b=btn: self.show_coin_details(b))
+        # Row 2: Coin label buttons
+        for col in range(FAVORITE_COIN_COUNT):
+            btn = self.create_order_button(f"COIN_{col}\n0.00", coin_label_style, lambda _, b=None, c=col: self.show_coin_details(self.fav_coin_buttons[c] if len(self.fav_coin_buttons) > c else btn))
             fav_coin_layout.addWidget(btn, 2, col)
             self.fav_coin_buttons.append(btn)
-
         # Row 3: Soft Sell buttons
-        for col in range(5):
-            btn = QPushButton("Soft Sell")
-            btn.setStyleSheet(soft_sell_style)
-            # Connect button to order_buttons function with "Soft_Sell" style
-            btn.clicked.connect(lambda _, c=col: order_buttons(self, "Soft_Sell", c))
+        for col in range(FAVORITE_COIN_COUNT):
+            btn = self.create_order_button("Soft Sell", soft_sell_style, lambda _, c=col: order_buttons(self, "Soft_Sell", c))
             fav_coin_layout.addWidget(btn, 3, col)
-
         # Row 4: Hard Sell buttons
-        for col in range(5):
-            btn = QPushButton("Hard Sell")
-            btn.setStyleSheet(hard_sell_style)
-            # Connect button to order_buttons function with "Hard_Sell" style
-            btn.clicked.connect(lambda _, c=col: order_buttons(self, "Hard_Sell", c))
+        for col in range(FAVORITE_COIN_COUNT):
+            btn = self.create_order_button("Hard Sell", hard_sell_style, lambda _, c=col: order_buttons(self, "Hard_Sell", c))
             fav_coin_layout.addWidget(btn, 4, col)
-
         top_layout.addWidget(fav_coin_group)
 
-        """Dynamic Coin Panel"""
+    def create_order_button(self, text, style, callback):
+        btn = QPushButton(text)
+        btn.setStyleSheet(style)
+        btn.clicked.connect(callback)
+        return btn
+
+    def setup_dynamic_coin_panel(self, top_layout):
         dyn_coin_group = QGroupBox()
         dyn_coin_group.setMinimumSize(100, 20)
         dyn_coin_group.setStyleSheet("""
@@ -157,35 +150,45 @@ class MainWindow(QMainWindow):
         dyn_coin_layout.setSpacing(5)
 
         # Dynamic coin buttons for buy/sell operations
-        btn_dyn_hard_buy = QPushButton("Hard Buy")
-        btn_dyn_hard_buy.setStyleSheet(hard_buy_style)
-        btn_dyn_hard_buy.clicked.connect(lambda _, c=6: order_buttons(self, "Hard_Buy", c))
+        hard_buy_style = (
+            "QPushButton { background-color: darkgreen; color: white; border-radius: 8px; min-height: 30px; }"
+            "QPushButton:hover { background-color: blue; }"
+        )
+        soft_buy_style = (
+            "QPushButton { background-color: #089000; color: white; border-radius: 8px; min-height: 30px; }"
+            "QPushButton:hover { background-color: blue; }"
+        )
+        soft_sell_style = (
+            "QPushButton { background-color: #800000; color: white; border-radius: 8px; min-height: 30px; }"
+            "QPushButton:hover { background-color: blue; }"
+        )
+        hard_sell_style = (
+            "QPushButton { background-color: #400000; color: white; border-radius: 8px; min-height: 30px; }"
+            "QPushButton:hover { background-color: blue; }"
+        )
+        coin_label_style = (
+            "QPushButton { background-color: gray; color: white; border-radius: 8px; min-height: 50px; }"
+            "QPushButton:hover { background-color: blue; }"
+        )
+
+        btn_dyn_hard_buy = self.create_order_button("Hard Buy", hard_buy_style, lambda _, c=DYNAMIC_COIN_INDEX: order_buttons(self, "Hard_Buy", c))
         dyn_coin_layout.addWidget(btn_dyn_hard_buy)
 
-        btn_dyn_soft_buy = QPushButton("Soft Buy")
-        btn_dyn_soft_buy.setStyleSheet(soft_buy_style)
-        btn_dyn_soft_buy.clicked.connect(lambda _, c=6: order_buttons(self, "Soft_Buy", c))
+        btn_dyn_soft_buy = self.create_order_button("Soft Buy", soft_buy_style, lambda _, c=DYNAMIC_COIN_INDEX: order_buttons(self, "Soft_Buy", c))
         dyn_coin_layout.addWidget(btn_dyn_soft_buy)
 
-        # Dynamic coin label button (name and price fetched from JSON)
-        self.dyn_coin_button = QPushButton("DYN_COIN\n0.00")
-        self.dyn_coin_button.setStyleSheet(coin_label_style)
-        self.dyn_coin_button.clicked.connect(lambda _, b=self.dyn_coin_button: self.show_coin_details(b))
+        self.dyn_coin_button = self.create_order_button("DYN_COIN\n0.00", coin_label_style, lambda _, b=self.dyn_coin_button: self.show_coin_details(b))
         dyn_coin_layout.addWidget(self.dyn_coin_button)
 
-        btn_dyn_soft_sell = QPushButton("Soft Sell")
-        btn_dyn_soft_sell.setStyleSheet(soft_sell_style)
-        btn_dyn_soft_sell.clicked.connect(lambda _, c=6: order_buttons(self, "Soft_Sell", c))
+        btn_dyn_soft_sell = self.create_order_button("Soft Sell", soft_sell_style, lambda _, c=DYNAMIC_COIN_INDEX: order_buttons(self, "Soft_Sell", c))
         dyn_coin_layout.addWidget(btn_dyn_soft_sell)
 
-        btn_dyn_hard_sell = QPushButton("Hard Sell")
-        btn_dyn_hard_sell.setStyleSheet(hard_sell_style)
-        btn_dyn_hard_sell.clicked.connect(lambda _, c=6: order_buttons(self, "Hard_Sell", c))
+        btn_dyn_hard_sell = self.create_order_button("Hard Sell", hard_sell_style, lambda _, c=DYNAMIC_COIN_INDEX: order_buttons(self, "Hard_Sell", c))
         dyn_coin_layout.addWidget(btn_dyn_hard_sell)
 
         top_layout.addWidget(dyn_coin_group)
 
-        """Wallet and Coin Entry Panel"""
+    def setup_wallet_and_entry_panel(self, top_layout):
         right_side_layout = QVBoxLayout()
         right_side_layout.setSpacing(10)
 
@@ -245,7 +248,7 @@ class MainWindow(QMainWindow):
         right_side_layout.addWidget(entry_frame)
         top_layout.addLayout(right_side_layout)
 
-        """Terminal"""
+    def setup_terminal(self, main_layout):
         # Terminal for displaying logs and messages
         self.terminal = QPlainTextEdit()
         self.terminal.setReadOnly(True)
@@ -259,6 +262,7 @@ class MainWindow(QMainWindow):
         """)
         main_layout.addWidget(self.terminal)
 
+    def setup_timers(self):
         # Timer to update coin prices every second
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_coin_prices)
@@ -426,7 +430,7 @@ def load_fav_coin():
 def retrieve_coin_symbol(col):
     data = load_fav_coin()
     coins = data['coins']
-    if col == 6:
+    if col == DYNAMIC_COIN_INDEX:
         return data['dynamic_coin'][0]['symbol']
     else:
         return coins[col]['symbol']
