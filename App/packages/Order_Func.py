@@ -27,6 +27,11 @@ SETTINGS_DIR = os.path.join(CURRENT_DIR, '..', 'settings')
 PREFERENCES_FILE = os.path.normpath(os.path.join(SETTINGS_DIR, 'Preferences.txt'))
 ENV_FILE = os.path.normpath(os.path.join(SETTINGS_DIR, '.env'))
 
+class TLSAdapter(HTTPAdapter):
+    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
+        import ssl
+        pool_kwargs['ssl_version'] = ssl.PROTOCOL_TLSv1_2
+        return super().init_poolmanager(connections, maxsize, block, **pool_kwargs)
 
 def prepare_client():
     """
@@ -38,6 +43,9 @@ def prepare_client():
     api_secret = os.getenv('BINANCE_API_SECRET')
     client = Client(api_key, api_secret)
     client.API_URL = "https://testnet.binance.vision/api"  # Use Binance testnet
+
+    # TLS 1.2 enforcement
+    client.session.mount('https://', TLSAdapter())
 
     # Time synchronization
     server_time = client.get_server_time()

@@ -5,7 +5,7 @@
 # soft_risk = %10
 # hard_risk = %20
 
-soft_risk = %10
+soft_risk = %15
 hard_risk = %40
 
 # Please enter the percentage value for acceptable price volatility.
@@ -21,3 +21,4 @@ accepted_price_volatility = %3
 # Please write only coin symbol with big letters
 
 favorite_coins = AAVE, ETH, BTC, DOGE, EIGEN
+chart_interval = %1

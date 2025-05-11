@@ -1,4 +1,5 @@
 import requests
+from .Order_Func import PREFERENCES_FILE
 
 """
 This module retrieves and formats candlestick data from the Binance API.
@@ -59,8 +60,18 @@ def format_candle_data(candles):
     return df
 
 def get_chart_data(symbol="BTCUSDT"):
+    # chart_interval tercihini Preferences.txt dosyasından oku
+    interval = "1"
+    try:
+        with open(PREFERENCES_FILE, 'r') as f:
+            for line in f:
+                if line.strip().startswith("chart_interval"):
+                    interval = line.split("=", 1)[1].strip().lstrip('%')
+                    break
+    except Exception:
+        interval = "1"
     # Make the API call only once and store the result in a variable.
-    candles = fetch_candles(symbol)
+    candles = fetch_candles(symbol, interval=f"{interval}m")
     if not candles or not isinstance(candles, list):
         raise ValueError("Unexpected data format received from the API.")
     df = format_candle_data(candles)

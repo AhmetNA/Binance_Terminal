@@ -8,12 +8,11 @@ from .SetPreferences import *
 
 import matplotlib.pyplot as plt
 import mplfinance as mpf  # for candlestick charts
-import matplotlib.patches as mpatches
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
-    QPushButton, QLabel, QLineEdit, QPlainTextEdit, QFrame, QDialog
+    QPushButton, QLabel, QLineEdit, QPlainTextEdit, QFrame, QDialog, QMessageBox
 )
 
 
@@ -47,9 +46,17 @@ class MainWindow(QMainWindow):
             client: An instance of the backend client used to interact with data and execute coin orders.
         """
         super().__init__()
+        # Ekran boyutunu al ve pencereyi ortaya göre biraz sola ve üste kaydır
+        screen = QApplication.primaryScreen().geometry()
+        win_w, win_h = 750, 400
+        center_x = screen.x() + (screen.width() - win_w) // 2
+        center_y = screen.y() + (screen.height() - win_h) // 2
+        offset_x = 300  # Sola kaydırma miktarı
+        offset_y = 150   # Üste kaydırma miktarı
+        self.move(center_x - offset_x, center_y - offset_y)
         self.client = client
         self.setWindowTitle("GAIN")
-        self.resize(750, 400)
+        self.resize(win_w, win_h)
         self.fav_coin_buttons = []
         self.dyn_coin_button = None
         self.setup_ui()
@@ -177,7 +184,9 @@ class MainWindow(QMainWindow):
         btn_dyn_soft_buy = self.create_order_button("Soft Buy", soft_buy_style, lambda _, c=DYNAMIC_COIN_INDEX: order_buttons(self, "Soft_Buy", c))
         dyn_coin_layout.addWidget(btn_dyn_soft_buy)
 
-        self.dyn_coin_button = self.create_order_button("DYN_COIN\n0.00", coin_label_style, lambda _, b=self.dyn_coin_button: self.show_coin_details(b))
+        btn_dyn_coin = self.create_order_button("DYN_COIN\n0.00", coin_label_style, None)
+        btn_dyn_coin.clicked.connect(lambda _, b=btn_dyn_coin: self.show_coin_details(b))
+        self.dyn_coin_button = btn_dyn_coin
         dyn_coin_layout.addWidget(self.dyn_coin_button)
 
         btn_dyn_soft_sell = self.create_order_button("Soft Sell", soft_sell_style, lambda _, c=DYNAMIC_COIN_INDEX: order_buttons(self, "Soft_Sell", c))
@@ -277,6 +286,13 @@ class MainWindow(QMainWindow):
         """Appends text to the terminal."""
         self.terminal.appendPlainText(text)
 
+    def show_error_message(self, message):
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(QMessageBox.Critical)
+        msg_box.setWindowTitle("Error")
+        msg_box.setText(message)
+        msg_box.exec()
+
     def submit_coin(self):
         """Handles coin submission from the input field."""
         coin_name = self.coin_input.text()
@@ -294,22 +310,26 @@ class MainWindow(QMainWindow):
                 coin_data = data['coins'][i]
                 symbol = coin_data.get('symbol', f"COIN_{i}")
                 price = coin_data.get('values', {}).get('current', "0.00")
-                btn.setText(f"{symbol}\n{price}")
+                if btn.text() != f"{symbol}\n{price}":
+                    btn.setText(f"{symbol}\n{price}")
             # Update dynamic coin button
             dyn_data = data['dynamic_coin'][0]
             symbol = dyn_data.get('symbol', "DYN_COIN")
             price = dyn_data.get('values', {}).get('current', "0.00")
-            self.dyn_coin_button.setText(f"{symbol}\n{price}")
+            if self.dyn_coin_button.text() != f"{symbol}\n{price}":
+                self.dyn_coin_button.setText(f"{symbol}\n{price}")
         except Exception as e:
-            self.append_to_terminal(f"Error updating coin prices: {e}")
+            self.show_error_message(f"Error updating coin prices: {e}")
 
     def update_wallet(self):
         """Updates the wallet balance displayed in the wallet frame."""
         try:
             available_usdt = retrieve_usdt_balance(self.client)
-            self.lbl_wallet.setText(f"Wallet\n${available_usdt:.2f}")
+            new_text = f"Wallet\n${available_usdt:.2f}"
+            if self.lbl_wallet.text() != new_text:
+                self.lbl_wallet.setText(new_text)
         except Exception as e:
-            self.append_to_terminal(f"Error updating wallet: {e}")
+            self.show_error_message(f"Error updating wallet: {e}")
 
     def open_settings(self):
         """Opens the settings window when the Settings button is clicked."""
@@ -320,6 +340,17 @@ class MainWindow(QMainWindow):
         """Displays a candlestick chart for the selected coin."""
         symbol = btn.text().split("\n")[0]
         try:
+            # Interval bilgisini Preferences.txt'den oku
+            from .Order_Func import PREFERENCES_FILE
+            interval = "1"
+            try:
+                with open(PREFERENCES_FILE, 'r') as f:
+                    for line in f:
+                        if line.strip().startswith("chart_interval"):
+                            interval = line.split("=", 1)[1].strip().lstrip('%')
+                            break
+            except Exception:
+                interval = "1"
             df = get_chart_data(symbol)
             first_price = df["Close"].iloc[0]
             last_price = df["Close"].iloc[-1]
@@ -339,7 +370,7 @@ class MainWindow(QMainWindow):
             ax = axlist[0]  # Get the first axis
 
             # Add title and adjust figure size
-            fig.suptitle(f"{symbol} Candle Chart", fontsize=12)
+            fig.suptitle(f"{symbol} ({interval}m) Candle Chart", fontsize=12)
             fig.set_size_inches(6, 4)
 
             # Add general info box with price details
@@ -350,7 +381,9 @@ class MainWindow(QMainWindow):
             ax.text(0.02, 0.98, info_text, transform=ax.transAxes, fontsize=8,
                     verticalalignment='top', bbox=props)
 
-            plt.tight_layout()
+            # Sol üstte interval bilgisini göster (isteğe bağlı, başlıkta da var)
+            # ax.text(0.02, 0.90, f"Interval: {interval}m", transform=ax.transAxes, fontsize=10, color='yellow', verticalalignment='top')
+
             plt.show()
         except Exception as e:
             self.append_to_terminal(f"Error displaying chart for {symbol}: {e}")
@@ -384,6 +417,13 @@ class SettingsWindow(QDialog):
             self.pref_edits[key] = edit
             layout.addWidget(edit)
 
+        # --- Coin Chart Interval ---
+        layout.addWidget(QLabel("Coin Chart Interval (1, 5, 15)", self))
+        interval_val = prefs.get("chart_interval", "1")
+        self.interval_edit = QLineEdit(interval_val)
+        self.interval_edit.setPlaceholderText("1, 5 veya 15")
+        layout.addWidget(self.interval_edit)
+
         # Add input fields for favorite coins
         layout.addWidget(QLabel("Favorite Coins"))
         self.original_coins = [c.strip() for c in prefs.get("favorite_coins", "").split(",")]
@@ -409,6 +449,15 @@ class SettingsWindow(QDialog):
             if new_val and new_val != self.original_prefs.get(key, ""):
                 msg = set_preference(key, new_val)  # Update the preference
                 self.parent().append_to_terminal(msg)  # Log the update in the terminal
+
+        # --- Coin Chart Interval ---
+        interval_val = self.interval_edit.text().strip()
+        if interval_val not in ("1", "5", "15"):
+            QMessageBox.critical(self, "Invalid Interval", "Interval must be 1, 5, or 15.")
+            return
+        if interval_val != self.original_prefs.get("chart_interval", "1"):
+            msg = set_preference("chart_interval", interval_val)
+            self.parent().append_to_terminal(msg)
 
         # Check favorite coins one by one and update only if there is a change
         for old, edit in zip(self.original_coins, self.fav_edits):
