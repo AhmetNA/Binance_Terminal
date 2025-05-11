@@ -495,19 +495,26 @@ def order_buttons(self, style, col):
         symbol = retrieve_coin_symbol(col)
         old_balance = retrieve_usdt_balance(self.client)
         order_paper = make_order(style, symbol)
-        
+
         amount = float(order_paper['fills'][0]['qty'])
         price = float(order_paper['fills'][0]['price'])
-        cost = amount * price
+        cost_or_received = float(order_paper.get('cummulativeQuoteQty', amount * price))
         new_balance = retrieve_usdt_balance(self.client)
+
+        if "Buy" in style:
+            actual_diff = old_balance - new_balance
+        else:
+            actual_diff = new_balance - old_balance
 
         operation = "Bought" if "Buy" in style else "Sold"
         action_type = "Hard" if "Hard" in style else "Soft"
         balance_change = f"Balance: previous {old_balance:.2f} -> current {new_balance:.2f}"
+        diff_info = f"(expected {'cost' if 'Buy' in style else 'received'}: {cost_or_received:.2f}, actual diff: {actual_diff:.2f})"
 
         self.append_to_terminal(
-            f"{action_type} {operation} {symbol}: {'cost' if 'Buy' in style else 'received'} {cost:.2f} USDT "
-            f"at {price:.2f} for {amount:.2f}. {balance_change}"
+            f"{action_type} {operation} {symbol}: "
+            f"{'cost' if 'Buy' in style else 'received'} {cost_or_received:.2f} USDT "
+            f"at {price:.2f} for {amount:.6f}. {balance_change} {diff_info}"
         )
     except Exception as e:
         self.append_to_terminal(f"Error processing {style} for {symbol}: {e}")

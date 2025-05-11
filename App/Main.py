@@ -4,7 +4,6 @@ from packages.GUI import initialize_gui
 
 # TODO: Ensure the user's purchase is executed within a specified volatility.
 # TODO: Create a exe file to run the code without the need of python.
-# TODO: Ensure the purchase's recieved and print the purchase's details correctly.
 
 # Logging configuration
 def setup_logging():
