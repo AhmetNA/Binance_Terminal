@@ -1,5 +1,5 @@
 import requests
-from .Order_Func import PREFERENCES_FILE
+from .Global_State import PREFERENCES_FILE
 
 """
 This module retrieves and formats candlestick data from the Binance API.

@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 import math
 import logging
+from .Global_State import PREFERENCES_FILE
 
 """
 Order_Func.py
@@ -18,7 +19,6 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 SETTINGS_DIR = os.path.join(CURRENT_DIR, '..', 'settings')
 
-PREFERENCES_FILE = os.path.normpath(os.path.join(SETTINGS_DIR, 'Preferences.txt'))
 ENV_FILE = os.path.normpath(os.path.join(SETTINGS_DIR, '.env'))
 
 def prepare_client():

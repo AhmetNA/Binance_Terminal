@@ -5,6 +5,7 @@ from .Order_Func import *
 from .Price_Update import *
 from .Coin_Chart import *
 from .SetPreferences import *
+from .Global_State import FAVORITE_COIN_COUNT, DYNAMIC_COIN_INDEX, FAV_COINS_FILE
 
 import matplotlib.pyplot as plt
 import mplfinance as mpf  # for candlestick charts
@@ -18,9 +19,6 @@ from PySide6.QtWidgets import (
 
 from PySide6.QtCore import Qt, QTimer
 import threading
-
-FAVORITE_COIN_COUNT = 5
-DYNAMIC_COIN_INDEX = 6
 
 class MainWindow(QMainWindow):
     def __init__(self, client):

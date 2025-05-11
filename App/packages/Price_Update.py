@@ -20,13 +20,7 @@ import time
 import ssl
 import os
 import logging
-
-# Magic strings and constants
-DYNAMIC_COIN_KEY = "dynamic_coin"
-COINS_KEY = "coins"
-USDT = "USDT"
-TICKER_SUFFIX = "@ticker"
-RECONNECT_DELAY = 5  # seconds
+from .Global_State import PREFERENCES_FILE, FAV_COINS_FILE, SYMBOLS, pending_subscriptions, USDT, TICKER_SUFFIX, RECONNECT_DELAY, COINS_KEY, DYNAMIC_COIN_KEY
 
 # Logging configuration
 logging.basicConfig(
@@ -38,8 +32,6 @@ logging.basicConfig(
     ]
 )
 
-pending_subscriptions = []
-
 ssl_options = {"ssl_version": ssl.PROTOCOL_TLSv1_2}
 
 """ FAVORITE COINS """
@@ -48,9 +40,6 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 APP_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..'))
 
 SETTINGS_DIR = os.path.join(APP_DIR, 'settings')
-
-PREFERENCES_FILE = os.path.join(SETTINGS_DIR, 'Preferences.txt')
-FAV_COINS_FILE = os.path.join(SETTINGS_DIR, 'fav_coins.json')
 
 BINANCE_WS_URL = "wss://stream.binance.com:9443/ws"
 
