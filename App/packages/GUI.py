@@ -524,14 +524,12 @@ def order_buttons(self, style, col):
 def initialize_gui():
 
     client = prepare_client()
-    
-    # Start background thread for price_update function
-    background_thread = threading.Thread(target=start_price_websocket, daemon=True)
-    background_thread.start()
-
     app = QApplication(sys.argv)
     window = MainWindow(client)
     window.show()
+    # Start background thread for price_update function AFTER GUI is shown
+    background_thread = threading.Thread(target=start_price_websocket, daemon=True)
+    background_thread.start()
     sys.exit(app.exec())
 
 

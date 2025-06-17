@@ -2,8 +2,6 @@ import logging
 import os
 from packages.GUI import initialize_gui
 
-# TODO: Ensure the user's purchase is executed within a specified volatility.
-# TODO: Create a exe file to run the code without the need of python.
 
 # Logging configuration
 def setup_logging():

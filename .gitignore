@@ -19,4 +19,6 @@ App/packages/tempCodeRunnerFile.py
 # Kişisel/örnek ayar dosyaları
 App/settings/fav_coin_example.json
 
-# Diğer gereksiz dosyalar
+# Build output folders
+build/
+dist/

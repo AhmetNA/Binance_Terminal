@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 import math
 import logging
-from .Global_State import PREFERENCES_FILE
+from .Global_State import PREFERENCES_FILE, SETTINGS_DIR
 
 """
 Order_Func.py
@@ -26,18 +26,12 @@ def prepare_client():
     @brief Prepares and returns a Binance API client instance.
     @return Client: Binance API client instance.
     """
-    load_dotenv(ENV_FILE)
+    load_dotenv(ENV_FILE, override=True)
     api_key = os.getenv('BINANCE_API_KEY')
     api_secret = os.getenv('BINANCE_API_SECRET')
     client = Client(api_key, api_secret)
     client.API_URL = "https://testnet.binance.vision/api"  # Use Binance testnet
-
-    # Time synchronization
-    server_time = client.get_server_time()
-    client_time = int(time.time() * 1000)
-    time_offset = server_time['serverTime'] - client_time
-    client.time_offset = time_offset
-
+    # Time synchronization is now deferred for speed
     return client
 
 
