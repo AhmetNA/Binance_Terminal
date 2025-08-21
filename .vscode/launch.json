@@ -1,0 +1,39 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Binance Terminal",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            },
+            "args": [],
+            "justMyCode": true,
+            "stopOnEntry": false
+        },
+        {
+            "name": "Test GUI Debug",
+            "type": "debugpy", 
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/debug_gui.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "args": [],
+            "justMyCode": true
+        },
+        {
+            "name": "Test Data System",
+            "type": "debugpy",
+            "request": "launch", 
+            "program": "${workspaceFolder}/scripts/comprehensive_test.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "args": [],
+            "justMyCode": true
+        }
+    ]
+}

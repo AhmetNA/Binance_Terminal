@@ -1,0 +1,96 @@
+[
+  {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "quantity": 0.001,
+    "price": 45000.0,
+    "total": 45.0,
+    "order_id": "test_123",
+    "wallet_before": {
+      "USDT": 100.0,
+      "BTC": 0.0
+    },
+    "wallet_after": {
+      "USDT": 55.0,
+      "BTC": 0.001
+    },
+    "recorded_at": "2025-08-04T20:56:44.219576",
+    "id": "20250804_205644_BTCUSDT"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "quantity": 0.001,
+    "price": 45000.0,
+    "total": 45.0,
+    "order_id": "test_123",
+    "wallet_before": {
+      "USDT": 100.0,
+      "BTC": 0.0
+    },
+    "wallet_after": {
+      "USDT": 55.0,
+      "BTC": 0.001
+    },
+    "recorded_at": "2025-08-04T20:57:56.543120",
+    "id": "20250804_205756_BTCUSDT"
+  },
+  {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "quantity": 0.001,
+    "price": 45000.0,
+    "total": 45.0,
+    "wallet_before": {
+      "USDT": 100.0
+    },
+    "wallet_after": {
+      "USDT": 55.0,
+      "BTC": 0.001
+    },
+    "order_id": "test_order_123",
+    "recorded_at": "2025-08-04T20:58:45.844736",
+    "id": "20250804_205845_BTCUSDT"
+  },
+  {
+    "timestamp": "2025-08-04T21:32:29.833172",
+    "symbol": "DOGEUSDT",
+    "side": "SELL",
+    "type": "Soft_Sell",
+    "quantity": 394.0,
+    "price": 0.20589,
+    "total_cost": 81.12066,
+    "wallet_before": 7404.520602,
+    "wallet_after": 7485.641262,
+    "order_id": 5724216,
+    "binance_data": {
+      "symbol": "DOGEUSDT",
+      "orderId": 5724216,
+      "orderListId": -1,
+      "clientOrderId": "zEPY3Q97MAi1OzjA8lzlvb",
+      "transactTime": 1754332349658,
+      "price": "0.00000000",
+      "origQty": "394.00000000",
+      "executedQty": "394.00000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "81.12066000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "SELL",
+      "workingTime": 1754332349658,
+      "fills": [
+        {
+          "price": "0.20589000",
+          "qty": "394.00000000",
+          "commission": "0.00000000",
+          "commissionAsset": "USDT",
+          "tradeId": 1044379
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-04T21:32:29.833172",
+    "id": "20250804_213229_DOGEUSDT"
+  }
+]

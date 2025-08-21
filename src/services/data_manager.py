@@ -1,0 +1,225 @@
+import json
+import os
+import datetime
+from typing import Dict, List, Optional
+import logging
+
+"""
+data_manager.py
+Kullanıcının trading verilerini, cüzdan değerlerini ve performans metriklerini yöneten servis.
+"""
+
+class DataManager:
+    def __init__(self):
+        try:
+            self.project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            self.data_dir = os.path.join(self.project_root, 'data')
+            self.trades_dir = os.path.join(self.data_dir, 'trades')
+            self.portfolio_dir = os.path.join(self.data_dir, 'portfolio')
+            self.analytics_dir = os.path.join(self.data_dir, 'analytics')
+            
+            # Ensure directories exist
+            for directory in [self.data_dir, self.trades_dir, self.portfolio_dir, self.analytics_dir]:
+                os.makedirs(directory, exist_ok=True)
+                
+            logging.info("DataManager initialized successfully")
+            
+        except Exception as e:
+            logging.error(f"Error initializing DataManager: {e}")
+            logging.exception("Full traceback for DataManager initialization error:")
+            raise
+    
+    def save_trade(self, trade_data: Dict) -> None:
+        """
+        Bir trading işlemini kaydeder.
+        
+        Args:
+            trade_data: {
+                'timestamp': '2025-08-04 20:45:00',
+                'symbol': 'BTCUSDT',
+                'side': 'BUY' | 'SELL',
+                'type': 'Hard_Buy' | 'Soft_Buy' | 'Hard_Sell' | 'Soft_Sell',
+                'quantity': 0.001,
+                'price': 50000.0,
+                'total_cost': 50.0,
+                'wallet_before': 1000.0,
+                'wallet_after': 950.0,
+                'order_id': 'binance_order_id'
+            }
+        """
+        try:
+            timestamp = datetime.datetime.now()
+            date_str = timestamp.strftime('%Y-%m-%d')
+            
+            # Add metadata
+            trade_data['recorded_at'] = timestamp.isoformat()
+            trade_data['id'] = f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{trade_data.get('symbol', 'UNKNOWN')}"
+            
+            # Daily trades file
+            trades_file = os.path.join(self.trades_dir, f'trades_{date_str}.json')
+            
+            # Load existing trades or create new list
+            trades = []
+            if os.path.exists(trades_file):
+                with open(trades_file, 'r', encoding='utf-8') as f:
+                    trades = json.load(f)
+            
+            trades.append(trade_data)
+            
+            # Save updated trades
+            with open(trades_file, 'w', encoding='utf-8') as f:
+                json.dump(trades, f, indent=2, ensure_ascii=False)
+            
+            logging.info(f"Trade saved: {trade_data['id']}")
+            
+        except Exception as e:
+            logging.error(f"Error saving trade: {e}")
+            logging.error(f"Trade data that failed to save: {trade_data}")
+            logging.exception("Full traceback for trade saving error:")
+    
+    def save_portfolio_snapshot(self, portfolio_data: Dict) -> None:
+        """
+        Portföy anlık görüntüsünü kaydeder.
+        
+        Args:
+            portfolio_data: {
+                'timestamp': '2025-08-04 20:45:00',
+                'total_usdt': 1000.0,
+                'total_value_usdt': 1050.0,
+                'holdings': {
+                    'BTC': {'amount': 0.002, 'value_usdt': 100.0},
+                    'ETH': {'amount': 0.05, 'value_usdt': 150.0}
+                },
+                'daily_pnl': 50.0,
+                'total_pnl': 150.0
+            }
+        """
+        try:
+            timestamp = datetime.datetime.now()
+            date_str = timestamp.strftime('%Y-%m-%d')
+            time_str = timestamp.strftime('%H:%M:%S')
+            
+            # Add metadata
+            portfolio_data['recorded_at'] = timestamp.isoformat()
+            portfolio_data['snapshot_id'] = f"{timestamp.strftime('%Y%m%d_%H%M%S')}"
+            
+            # Daily portfolio file
+            portfolio_file = os.path.join(self.portfolio_dir, f'portfolio_{date_str}.json')
+            
+            # Load existing snapshots or create new list
+            snapshots = []
+            if os.path.exists(portfolio_file):
+                with open(portfolio_file, 'r', encoding='utf-8') as f:
+                    snapshots = json.load(f)
+            
+            snapshots.append(portfolio_data)
+            
+            # Save updated snapshots
+            with open(portfolio_file, 'w', encoding='utf-8') as f:
+                json.dump(snapshots, f, indent=2, ensure_ascii=False)
+            
+            # Also save latest snapshot for quick access
+            latest_file = os.path.join(self.portfolio_dir, 'latest_portfolio.json')
+            with open(latest_file, 'w', encoding='utf-8') as f:
+                json.dump(portfolio_data, f, indent=2, ensure_ascii=False)
+            
+            logging.info(f"Portfolio snapshot saved: {portfolio_data['snapshot_id']}")
+            
+        except Exception as e:
+            logging.error(f"Error saving portfolio snapshot: {e}")
+            logging.error(f"Portfolio data that failed to save: {portfolio_data}")
+            logging.exception("Full traceback for portfolio saving error:")
+    
+    def get_latest_portfolio(self) -> Optional[Dict]:
+        """Son portföy durumunu getirir."""
+        latest_file = None
+        try:
+            latest_file = os.path.join(self.portfolio_dir, 'latest_portfolio.json')
+            if os.path.exists(latest_file):
+                with open(latest_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return None
+        except Exception as e:
+            logging.error(f"Error loading latest portfolio: {e}")
+            logging.error(f"Failed to load from file: {latest_file}")
+            logging.exception("Full traceback for portfolio loading error:")
+            return None
+    
+    def get_trades_by_date(self, date: str) -> List[Dict]:
+        """Belirli bir tarihteki işlemleri getirir."""
+        trades_file = None
+        try:
+            trades_file = os.path.join(self.trades_dir, f'trades_{date}.json')
+            if os.path.exists(trades_file):
+                with open(trades_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return []
+        except Exception as e:
+            logging.error(f"Error loading trades for {date}: {e}")
+            logging.error(f"Failed to load from file: {trades_file}")
+            logging.exception("Full traceback for trades loading error:")
+            return []
+    
+    def get_trades_summary(self, days: int = 7) -> Dict:
+        """Son N günün işlem özetini getirir."""
+        try:
+            summary = {
+                'total_trades': 0,
+                'total_buy_volume': 0.0,
+                'total_sell_volume': 0.0,
+                'profitable_trades': 0,
+                'losing_trades': 0,
+                'most_traded_symbol': '',
+                'date_range': f"Last {days} days"
+            }
+            
+            end_date = datetime.datetime.now()
+            
+            for i in range(days):
+                date = (end_date - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
+                trades = self.get_trades_by_date(date)
+                
+                for trade in trades:
+                    summary['total_trades'] += 1
+                    side = trade.get('side', '').upper()
+                    if side == 'BUY' or side == 'buy':
+                        summary['total_buy_volume'] += trade.get('total', trade.get('total_cost', 0))
+                    elif side == 'SELL' or side == 'sell':
+                        summary['total_sell_volume'] += trade.get('total', trade.get('total_cost', 0))
+            
+            # Calculate today's trades count
+            today_str = datetime.datetime.now().strftime('%Y-%m-%d')
+            today_trades = self.get_trades_by_date(today_str)
+            summary['today_count'] = len(today_trades)
+            
+            return summary
+            
+        except Exception as e:
+            logging.error(f"Error generating trades summary: {e}")
+            logging.error(f"Failed to generate summary for last {days} days")
+            logging.exception("Full traceback for trades summary error:")
+            return {}
+    
+    def save_analytics(self, analytics_data: Dict) -> None:
+        """Analitik verilerini kaydeder."""
+        analytics_file = None
+        try:
+            timestamp = datetime.datetime.now()
+            date_str = timestamp.strftime('%Y-%m-%d')
+            
+            analytics_file = os.path.join(self.analytics_dir, f'analytics_{date_str}.json')
+            
+            with open(analytics_file, 'w', encoding='utf-8') as f:
+                json.dump(analytics_data, f, indent=2, ensure_ascii=False)
+            
+            logging.info(f"Analytics saved for {date_str}")
+            
+        except Exception as e:
+            logging.error(f"Error saving analytics: {e}")
+            logging.error(f"Analytics data that failed to save: {analytics_data}")
+            logging.error(f"Failed to save to file: {analytics_file}")
+            logging.exception("Full traceback for analytics saving error:")
+
+
+# Global instance
+data_manager = DataManager()

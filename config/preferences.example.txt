@@ -1,0 +1,20 @@
+# Trading Preferences Configuration
+# This file contains user preferences for trading parameters
+
+# Risk Management
+# Percentage of portfolio to risk on soft trades (1-10%)
+soft_risk = 2%
+
+# Percentage of portfolio to risk on hard trades (5-20%)  
+hard_risk = 5%
+
+# Price volatility threshold (0.1-5%)
+accepted_price_volatility = 1%
+
+# Chart Settings
+# Chart interval in minutes (1, 5, 15, 30, 60)
+chart_interval = 1
+
+# Favorite Coins
+# Comma-separated list of coin symbols (without USDT)
+favorite_coins = BTC, ETH, ADA, DOT, SOL
