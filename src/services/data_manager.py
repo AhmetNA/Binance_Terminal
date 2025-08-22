@@ -3,6 +3,15 @@ import os
 import datetime
 from typing import Dict, List, Optional
 import logging
+import sys
+
+# Import centralized paths
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from core.paths import (
+    PROJECT_ROOT, DATA_DIR, TRADES_DIR, PORTFOLIO_DIR, ANALYTICS_DIR,
+    LATEST_PORTFOLIO_FILE, get_daily_trades_file, get_daily_portfolio_file,
+    get_daily_analytics_file
+)
 
 """
 data_manager.py
@@ -12,13 +21,14 @@ Kullanıcının trading verilerini, cüzdan değerlerini ve performans metrikler
 class DataManager:
     def __init__(self):
         try:
-            self.project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-            self.data_dir = os.path.join(self.project_root, 'data')
-            self.trades_dir = os.path.join(self.data_dir, 'trades')
-            self.portfolio_dir = os.path.join(self.data_dir, 'portfolio')
-            self.analytics_dir = os.path.join(self.data_dir, 'analytics')
+            # Use centralized paths
+            self.project_root = PROJECT_ROOT
+            self.data_dir = DATA_DIR
+            self.trades_dir = TRADES_DIR
+            self.portfolio_dir = PORTFOLIO_DIR
+            self.analytics_dir = ANALYTICS_DIR
             
-            # Ensure directories exist
+            # Ensure directories exist (paths module already handles this)
             for directory in [self.data_dir, self.trades_dir, self.portfolio_dir, self.analytics_dir]:
                 os.makedirs(directory, exist_ok=True)
                 
@@ -56,7 +66,7 @@ class DataManager:
             trade_data['id'] = f"{timestamp.strftime('%Y%m%d_%H%M%S')}_{trade_data.get('symbol', 'UNKNOWN')}"
             
             # Daily trades file
-            trades_file = os.path.join(self.trades_dir, f'trades_{date_str}.json')
+            trades_file = get_daily_trades_file(date_str)
             
             # Load existing trades or create new list
             trades = []
@@ -104,7 +114,7 @@ class DataManager:
             portfolio_data['snapshot_id'] = f"{timestamp.strftime('%Y%m%d_%H%M%S')}"
             
             # Daily portfolio file
-            portfolio_file = os.path.join(self.portfolio_dir, f'portfolio_{date_str}.json')
+            portfolio_file = get_daily_portfolio_file(date_str)
             
             # Load existing snapshots or create new list
             snapshots = []
@@ -119,8 +129,7 @@ class DataManager:
                 json.dump(snapshots, f, indent=2, ensure_ascii=False)
             
             # Also save latest snapshot for quick access
-            latest_file = os.path.join(self.portfolio_dir, 'latest_portfolio.json')
-            with open(latest_file, 'w', encoding='utf-8') as f:
+            with open(LATEST_PORTFOLIO_FILE, 'w', encoding='utf-8') as f:
                 json.dump(portfolio_data, f, indent=2, ensure_ascii=False)
             
             logging.info(f"Portfolio snapshot saved: {portfolio_data['snapshot_id']}")
@@ -132,31 +141,28 @@ class DataManager:
     
     def get_latest_portfolio(self) -> Optional[Dict]:
         """Son portföy durumunu getirir."""
-        latest_file = None
         try:
-            latest_file = os.path.join(self.portfolio_dir, 'latest_portfolio.json')
-            if os.path.exists(latest_file):
-                with open(latest_file, 'r', encoding='utf-8') as f:
+            if os.path.exists(LATEST_PORTFOLIO_FILE):
+                with open(LATEST_PORTFOLIO_FILE, 'r', encoding='utf-8') as f:
                     return json.load(f)
             return None
         except Exception as e:
             logging.error(f"Error loading latest portfolio: {e}")
-            logging.error(f"Failed to load from file: {latest_file}")
+            logging.error(f"Failed to load from file: {LATEST_PORTFOLIO_FILE}")
             logging.exception("Full traceback for portfolio loading error:")
             return None
     
     def get_trades_by_date(self, date: str) -> List[Dict]:
         """Belirli bir tarihteki işlemleri getirir."""
-        trades_file = None
         try:
-            trades_file = os.path.join(self.trades_dir, f'trades_{date}.json')
+            trades_file = get_daily_trades_file(date)
             if os.path.exists(trades_file):
                 with open(trades_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
             return []
         except Exception as e:
             logging.error(f"Error loading trades for {date}: {e}")
-            logging.error(f"Failed to load from file: {trades_file}")
+            logging.error(f"Failed to load from file: {get_daily_trades_file(date)}")
             logging.exception("Full traceback for trades loading error:")
             return []
     
@@ -202,12 +208,11 @@ class DataManager:
     
     def save_analytics(self, analytics_data: Dict) -> None:
         """Analitik verilerini kaydeder."""
-        analytics_file = None
         try:
             timestamp = datetime.datetime.now()
             date_str = timestamp.strftime('%Y-%m-%d')
             
-            analytics_file = os.path.join(self.analytics_dir, f'analytics_{date_str}.json')
+            analytics_file = get_daily_analytics_file(date_str)
             
             with open(analytics_file, 'w', encoding='utf-8') as f:
                 json.dump(analytics_data, f, indent=2, ensure_ascii=False)
@@ -217,7 +222,7 @@ class DataManager:
         except Exception as e:
             logging.error(f"Error saving analytics: {e}")
             logging.error(f"Analytics data that failed to save: {analytics_data}")
-            logging.error(f"Failed to save to file: {analytics_file}")
+            logging.error(f"Failed to save to file: {get_daily_analytics_file()}")
             logging.exception("Full traceback for analytics saving error:")
 
 

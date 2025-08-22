@@ -2,7 +2,7 @@
 echo Starting Binance Terminal Application...
 echo =========================================
 
-cd /d "c:\Users\Ahmet\Documents\GitHub\PersonelProjects\Binance_Terminal"
+cd /d "c:\Users\Ahmet\Documents\GitHub\PersonelProjects\binance_terminal_dev"
 
 echo Current directory: %CD%
 echo Python version:

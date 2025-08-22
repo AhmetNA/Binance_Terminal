@@ -1,14 +1,8 @@
-import os
-import sys
 import json
 import datetime
 from typing import Dict, List, Tuple
 
-# Add path for imports
-current_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.dirname(current_dir)
-sys.path.append(src_dir)
-
+from core.paths import TRADES_DIR, ANALYTICS_DIR, get_daily_trades_file
 from services.data_manager import data_manager
 
 """
@@ -157,8 +151,10 @@ class AnalyticsService:
                 date = end_date - datetime.timedelta(days=i)
                 date_str = date.strftime('%Y-%m-%d')
                 
-                trades_file = os.path.join(self.data_manager.trades_dir, f'trades_{date_str}.json')
+                trades_file = get_daily_trades_file(date_str)
                 
+                # Check if file exists using os module (we need to import it back for file operations)
+                import os
                 if os.path.exists(trades_file):
                     with open(trades_file, 'r', encoding='utf-8') as f:
                         daily_trades = json.load(f)
@@ -173,11 +169,13 @@ class AnalyticsService:
     def export_report(self, report: Dict, filename: str = None) -> str:
         """Raporu dosyaya aktarır."""
         try:
+            import os
+            
             if not filename:
                 timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
                 filename = f'performance_report_{timestamp}.json'
             
-            report_path = os.path.join(self.data_manager.analytics_dir, filename)
+            report_path = os.path.join(ANALYTICS_DIR, filename)
             
             with open(report_path, 'w', encoding='utf-8') as f:
                 json.dump(report, f, indent=2, ensure_ascii=False)

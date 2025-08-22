@@ -6,50 +6,38 @@ import math
 import logging
 import datetime
 
+# Import centralized paths
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from core.paths import PREFERENCES_FILE, ENV_FILE, SETTINGS_DIR, PROJECT_ROOT
+
 """
 order_service.py
-This file handles the creation and execution of different types of orders.
-Depending on the chosen style (Hard_Buy, Hard_Sell, Soft_Buy, Soft_Sell), it prepares
-the client and executes the corresponding order function. The main function demonstrates
-the order creation process and showcases how buy preferences and balances are used.
+This file handles the creation and execution of different types of orders using a class-based approach.
+The new structure includes OrderManager, OrderFactory, and specific order classes for better organization.
+Depending on the chosen style (Hard_Buy, Hard_Sell, Soft_Buy, Soft_Sell), it creates appropriate
+order objects and executes them. The main function demonstrates the order creation process
+and showcases how buy preferences and balances are used with the new class structure.
 """
 
-# Constants for file paths
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, '..', '..'))
-SETTINGS_DIR = os.path.join(PROJECT_ROOT, 'config')
-PREFERENCES_FILE = os.path.join(SETTINGS_DIR, 'Preferences.txt')
-ENV_FILE = os.path.join(SETTINGS_DIR, '.env')
+# Module-level cache for preferences
+_CACHED_PREFERENCES = None
+_PREFERENCE_CACHE_TIME = None
 
-def prepare_client():
-    """
-    @brief Prepares and returns a Binance API client instance.
-    @return Client: Binance API client instance.
-    """
-    try:
-        load_dotenv(ENV_FILE, override=True)
-        api_key = os.getenv('BINANCE_API_KEY')
-        api_secret = os.getenv('BINANCE_API_SECRET')
-        
-        if not api_key or not api_secret:
-            raise ValueError("API anahtarları bulunamadı!")
-            
-        client = Client(api_key, api_secret)
-        client.API_URL = "https://testnet.binance.vision/api"  # Use Binance testnet
-        logging.info("Binance API client successfully initialized")
-        return client
-    except Exception as e:
-        print(f"❌ Binance API bağlantı hatası: {e}")
-        logging.error(f"Error preparing Binance client: {e}")
-        logging.exception("Full traceback for client preparation error:")
-        raise
+# Module-level cache for Binance client
+_CACHED_CLIENT = None
+_CLIENT_CACHE_TIME = None
 
-
-def get_buy_preferences():
+def _load_preferences_once():
     """
-    @brief Reads and returns the soft and hard risk percentages from the Preferences.txt file.
-    @return tuple: A tuple containing soft risk and hard risk percentages.
+    @brief Preferences'ları bir kez yükler ve cache'ler - module seviyesinde
+    @return tuple: (soft_risk, hard_risk)
     """
+    global _CACHED_PREFERENCES
+    
+    if _CACHED_PREFERENCES is not None:
+        return _CACHED_PREFERENCES
+    
     try:
         with open(PREFERENCES_FILE, "r") as file:
             soft_risk = None
@@ -66,15 +54,125 @@ def get_buy_preferences():
         if soft_risk is None or hard_risk is None:
             raise ValueError("Risk ayarları tam olarak okunamadı!")
             
-        logging.info(f"Buy preferences loaded: soft_risk={soft_risk}, hard_risk={hard_risk}")
-        return soft_risk, hard_risk
+        _CACHED_PREFERENCES = (soft_risk, hard_risk)
+        logging.info(f"Preferences cached at module level: soft_risk={soft_risk:.1%}, hard_risk={hard_risk:.1%}")
+        return _CACHED_PREFERENCES
         
     except Exception as e:
-        print(f"❌ Risk ayarları okuma hatası: {e}")
-        logging.error(f"Error reading buy preferences: {e}")
-        logging.error(f"Failed to read from file: {PREFERENCES_FILE}")
-        logging.exception("Full traceback for preferences reading error:")
-        raise
+        logging.error(f"Error loading preferences: {e}")
+        # Fallback değerler
+        _CACHED_PREFERENCES = (0.10, 0.20)  # %10 soft, %20 hard
+        logging.warning(f"Using fallback preferences: {_CACHED_PREFERENCES}")
+        return _CACHED_PREFERENCES
+
+def _initialize_client_once():
+    """
+    @brief Client'ı bir kez initialize eder ve cache'ler - module seviyesinde
+    @return tuple: (soft_risk_percent, hard_risk_percent)
+    """
+    global _CACHED_CLIENT
+    
+    if _CACHED_CLIENT is None:
+        try:
+            load_dotenv(ENV_FILE, override=True)
+            api_key = os.getenv('BINANCE_API_KEY')
+            api_secret = os.getenv('BINANCE_API_SECRET')
+            
+            if not api_key or not api_secret:
+                raise ValueError("API anahtarları bulunamadı!")
+                
+            _CACHED_CLIENT = Client(api_key, api_secret)
+            _CACHED_CLIENT.API_URL = "https://testnet.binance.vision/api"  # Use Binance testnet
+            logging.info("🚀 Binance client cached at module level")
+            return _CACHED_CLIENT
+        except Exception as e:
+            print(f"❌ Binance API bağlantı hatası: {e}")
+            logging.error(f"Error preparing Binance client: {e}")
+            logging.exception("Full traceback for client preparation error:")
+            raise
+    else:
+        # Cache'den döndür - çok hızlı!
+        return _CACHED_CLIENT
+
+def prepare_client():
+    """
+    @brief Prepares and returns a cached Binance API client instance.
+    @return Client: Binance API client instance (cached).
+    """
+    return _initialize_client_once()
+
+def force_client_reload():
+    """
+    @brief Client cache'ini temizler ve yeniden yüklemeye zorlar
+    """
+    global _CACHED_CLIENT
+    _CACHED_CLIENT = None
+    logging.info("🔄 Forcing client reload due to configuration change")
+    client = _initialize_client_once()
+    logging.info("✅ Client cache reloaded successfully")
+    return client
+
+def get_cached_client_info():
+    """
+    @brief Debug için cache durumunu gösterir
+    @return dict: Cache durumu hakkında bilgi
+    """
+    global _CACHED_CLIENT
+    return {
+        'is_cached': _CACHED_CLIENT is not None,
+        'client_type': type(_CACHED_CLIENT).__name__ if _CACHED_CLIENT else None,
+        'api_url': getattr(_CACHED_CLIENT, 'API_URL', None) if _CACHED_CLIENT else None
+    }
+
+# Module import edildiğinde otomatik olarak yükle (lazy loading)
+# Yoruma alıyoruz çünkü ilk çağrıda yüklenecek
+
+
+def get_buy_preferences():
+    """
+    @brief Returns cached preferences - super fast!
+    @return tuple: A tuple containing soft risk and hard risk percentages.
+    """
+    global _CACHED_PREFERENCES
+    
+    # Cache'den döndür - çok hızlı!
+    if _CACHED_PREFERENCES is None:
+        _CACHED_PREFERENCES = _load_preferences_once()
+    
+    return _CACHED_PREFERENCES
+
+
+def reload_preferences():
+    """
+    @brief Forces reload of preferences from file
+    @return tuple: (soft_risk, hard_risk)
+    """
+    global _CACHED_PREFERENCES
+    _CACHED_PREFERENCES = None
+    return _load_preferences_once()
+
+
+def force_preferences_reload():
+    """
+    @brief Public function to force reload preferences - used by UI/settings
+    @return tuple: (soft_risk, hard_risk)
+    """
+    logging.info("🔄 Forcing preferences reload due to settings change")
+    return reload_preferences()
+
+
+def get_cached_preferences_info():
+    """
+    @brief Returns information about current cached preferences
+    @return dict: Cache status and values
+    """
+    global _CACHED_PREFERENCES
+    return {
+        'is_cached': _CACHED_PREFERENCES is not None,
+        'values': _CACHED_PREFERENCES,
+        'soft_risk_percent': f"{_CACHED_PREFERENCES[0]:.1%}" if _CACHED_PREFERENCES else None,
+        'hard_risk_percent': f"{_CACHED_PREFERENCES[1]:.1%}" if _CACHED_PREFERENCES else None
+    }
     
 
 def get_account_data(client):
@@ -92,6 +190,21 @@ def get_account_data(client):
         logging.exception("Full traceback for account data retrieval error:")
         raise
 
+def validate_trading_symbol(client, symbol):
+    """
+    @brief Validates if a trading symbol exists on Binance.
+    @param client: Binance API client instance.
+    @param symbol: Trading pair symbol (e.g., 'BTCUSDT').
+    @return bool: True if valid, False otherwise.
+    """
+    try:
+        exchange_info = client.get_exchange_info()
+        valid_symbols = [s['symbol'] for s in exchange_info['symbols']]
+        return symbol.upper() in valid_symbols
+    except Exception as e:
+        logging.error(f"Error validating symbol {symbol}: {e}")
+        return False
+
 def get_price(client, SYMBOL):
     """
     @brief Retrieves and returns the current market price of the specified trading pair.
@@ -101,9 +214,20 @@ def get_price(client, SYMBOL):
     """
     try:
         SYMBOL = SYMBOL.upper()
+        
+        # Sembol validasyonu ekle
+        if not validate_trading_symbol(client, SYMBOL):
+            raise ValueError(f"Invalid trading symbol: {SYMBOL} - This symbol is not available on Binance")
+        
         ticker = client.get_symbol_ticker(symbol=SYMBOL)
         price = float(ticker['price'])
         return price
+    except ValueError as ve:
+        # ValueError'u olduğu gibi re-raise et
+        print(f"❌ {SYMBOL} fiyat sorgulama hatası: {ve}")
+        logging.error(f"Error retrieving price for {SYMBOL}: {ve}")
+        logging.exception("Full traceback for price retrieval error:")
+        raise
     except Exception as e:
         print(f"❌ {SYMBOL} fiyat sorgulama hatası: {e}")
         logging.error(f"Error retrieving price for {SYMBOL}: {e}")
@@ -329,10 +453,14 @@ def hard_buy_order(client, SYMBOL):
     @return dict: Details of the executed order.
     """
     try:
-        Soft_buy_percentage, Hard_buy_percentage = get_buy_preferences()
-        order = place_BUY_order(client, SYMBOL, Hard_buy_percentage)
-        logging.info(f"Hard buy order completed for {SYMBOL} with {Hard_buy_percentage*100:.1f}%")
+        from models import MarketBuyOrder, RiskLevel
+        
+        # Cache'den al - çok hızlı! (~0.001ms)
+        risk_preferences = get_buy_preferences()
+        order_obj = MarketBuyOrder(client, SYMBOL, RiskLevel.HARD, risk_preferences)
+        order = order_obj.execute()
         return order
+        
     except Exception as e:
         print(f"❌ Hard Buy order hatası - {SYMBOL}: {e}")
         logging.error(f"Error in hard_buy_order for {SYMBOL}: {e}")
@@ -347,10 +475,14 @@ def hard_sell_order(client, SYMBOL):
     @return dict: Details of the executed order.
     """
     try:
-        Soft_sell_percentage, Hard_sell_percentage = get_buy_preferences()
-        order = place_SELL_order(client, SYMBOL, Hard_sell_percentage)
-        logging.info(f"Hard sell order completed for {SYMBOL} with {Hard_sell_percentage*100:.1f}%")
+        from models import MarketSellOrder, RiskLevel
+        
+        # Cache'den al - çok hızlı!
+        risk_preferences = get_buy_preferences()
+        order_obj = MarketSellOrder(client, SYMBOL, RiskLevel.HARD, risk_preferences)
+        order = order_obj.execute()
         return order
+        
     except Exception as e:
         print(f"❌ Hard Sell order hatası - {SYMBOL}: {e}")
         logging.error(f"Error in hard_sell_order for {SYMBOL}: {e}")
@@ -365,10 +497,14 @@ def soft_buy_order(client, SYMBOL):
     @return dict: Details of the executed order.
     """
     try:
-        Soft_buy_percentage, Hard_buy_percentage = get_buy_preferences()
-        order = place_BUY_order(client, SYMBOL, Soft_buy_percentage)
-        logging.info(f"Soft buy order completed for {SYMBOL} with {Soft_buy_percentage*100:.1f}%")
+        from models import MarketBuyOrder, RiskLevel
+        
+        # Cache'den al - çok hızlı!
+        risk_preferences = get_buy_preferences()
+        order_obj = MarketBuyOrder(client, SYMBOL, RiskLevel.SOFT, risk_preferences)
+        order = order_obj.execute()
         return order
+        
     except Exception as e:
         print(f"❌ Soft Buy order hatası - {SYMBOL}: {e}")
         logging.error(f"Error in soft_buy_order for {SYMBOL}: {e}")
@@ -383,10 +519,14 @@ def soft_sell_order(client, SYMBOL):
     @return dict: Details of the executed order.
     """
     try:
-        Soft_sell_percentage, Hard_sell_percentage = get_buy_preferences()
-        order = place_SELL_order(client, SYMBOL, Soft_sell_percentage)
-        logging.info(f"Soft sell order completed for {SYMBOL} with {Soft_sell_percentage*100:.1f}%")
+        from models import MarketSellOrder, RiskLevel
+        
+        # Cache'den al - çok hızlı!
+        risk_preferences = get_buy_preferences()
+        order_obj = MarketSellOrder(client, SYMBOL, RiskLevel.SOFT, risk_preferences)
+        order = order_obj.execute()
         return order
+        
     except Exception as e:
         print(f"❌ Soft Sell order hatası - {SYMBOL}: {e}")
         logging.error(f"Error in soft_sell_order for {SYMBOL}: {e}")
@@ -395,31 +535,24 @@ def soft_sell_order(client, SYMBOL):
 
 def make_order(Style, Symbol):
     """
-    @brief Executes an order based on the specified style and symbol.
+    @brief Executes an order based on the specified style and symbol using the new class-based approach.
     @param Style: The type of order to execute ("Hard_Buy", "Hard_Sell", "Soft_Buy", "Soft_Sell").
     @param Symbol: Trading pair symbol (e.g., "BTCUSDT").
     @return dict: Details of the executed order.
     """
     try:
         from .data_manager import data_manager
+        from models import OrderManager
         
         client = prepare_client()
         wallet_before = retrieve_usdt_balance(client)
         
-        order = None
-        if Style == "Hard_Buy":
-            order = hard_buy_order(client, Symbol)
-        elif Style == "Hard_Sell":
-            order = hard_sell_order(client, Symbol)
-        elif Style == "Soft_Buy":
-            order = soft_buy_order(client, Symbol)
-        elif Style == "Soft_Sell":
-            order = soft_sell_order(client, Symbol)
-        else:
-            error_msg = f"Geçersiz emir tipi: {Style}"
-            print(f"❌ {error_msg}")
-            logging.error(error_msg)
-            return None
+        # Cache'den risk tercihlerini al - çok hızlı!
+        risk_preferences = get_buy_preferences()
+        
+        # OrderManager ile order'ı execute et
+        order_manager = OrderManager(client, risk_preferences)
+        order = order_manager.execute_order(Style, Symbol)
         
         if order:
             # Get wallet balance after trade
@@ -481,23 +614,110 @@ def make_order(Style, Symbol):
 
 def main():
     """
-    @brief Main function to demonstrate the order creation process.
+    @brief Main function to demonstrate the order creation process using the new class-based approach.
     """
     try:
         logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
         
+        # Client'ı hazırla
         client = prepare_client()
         symbol = "btc"
-        price_tolerance = 0.001
-        hard, soft = get_buy_preferences()
         
-        hard_buy_order(client, symbol)
+        # Cache'den risk tercihlerini al - çok hızlı!
+        risk_preferences = get_buy_preferences()
+        
+        # OrderManager kullanarak order execute et
+        from models import OrderManager
+        order_manager = OrderManager(client, risk_preferences)
+        
+        # Hard buy order örneği
+        result = order_manager.execute_order("Hard_Buy", symbol)
+        print(f"✅ Order executed successfully: {result}")
         
     except Exception as e:
         print(f"❌ MAIN FUNCTION HATASI: {e}")
         logging.error(f"Error in main function: {e}")
         logging.exception("Full traceback for main function error:")
+
+
+def get_available_order_types():
+    """
+    @brief Returns available order types for UI components.
+    @return list: List of available order types.
+    """
+    from models import OrderManager
     
+    # Dummy client ve risk preferences ile OrderManager oluştur
+    dummy_manager = OrderManager(None, None)
+    return dummy_manager.get_available_order_styles()
+
+
+def validate_order_request(order_style: str, symbol: str) -> tuple:
+    """
+    @brief Validates an order request before execution.
+    @param order_style: Order style to validate
+    @param symbol: Symbol to validate
+    @return tuple: (is_valid: bool, error_message: str or None)
+    """
+    try:
+        from models import OrderManager
+        
+        # Order style validasyonu
+        dummy_manager = OrderManager(None, None)
+        if not dummy_manager.validate_order_style(order_style):
+            return False, f"Invalid order style: {order_style}"
+        
+        # Symbol format kontrolü
+        if not symbol or len(symbol.strip()) == 0:
+            return False, "Symbol cannot be empty"
+        
+        # Temel symbol format kontrolü
+        symbol = symbol.upper().strip()
+        if not symbol.replace("USDT", "").isalpha():
+            return False, f"Invalid symbol format: {symbol}"
+        
+        return True, None
+        
+    except Exception as e:
+        return False, f"Validation error: {e}"
+
+
+def create_order_summary(order_style: str, symbol: str, risk_preferences: tuple = None) -> dict:
+    """
+    @brief Creates an order summary without executing it.
+    @param order_style: Order style
+    @param symbol: Trading symbol
+    @param risk_preferences: Risk preferences tuple
+    @return dict: Order summary information
+    """
+    try:
+        from models import OrderFactory, RiskLevel
+        
+        if not risk_preferences:
+            # Cache'den al - çok hızlı!
+            risk_preferences = get_buy_preferences()
+        
+        # Client'sız order objesi oluştur (sadece bilgi için)
+        order = OrderFactory.create_order(order_style, None, symbol, risk_preferences)
+        
+        return {
+            'order_style': order_style,
+            'symbol': order.symbol,
+            'side': order.side.value,
+            'order_type': order.order_type.value,
+            'risk_level': order.risk_level.value,
+            'risk_percentage': order.get_risk_percentage(order.risk_level) * 100,
+            'valid': True
+        }
+        
+    except Exception as e:
+        return {
+            'order_style': order_style,
+            'symbol': symbol,
+            'error': str(e),
+            'valid': False
+        }
     
+
 if __name__ == "__main__":
     main()

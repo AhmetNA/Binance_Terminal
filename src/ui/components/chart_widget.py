@@ -67,6 +67,26 @@ def format_candle_data(candles):
     df.set_index("open_time", inplace=True)
     return df
 
+def validate_symbol(symbol):
+    """
+    Validates if a symbol exists on Binance by checking exchange info.
+    Returns True if valid, False otherwise.
+    """
+    import logging
+    try:
+        url = "https://api.binance.com/api/v3/exchangeInfo"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            valid_symbols = [s['symbol'] for s in data['symbols']]
+            return symbol.upper() in valid_symbols
+        else:
+            logging.error(f"Failed to fetch exchange info: {response.status_code}")
+            return False
+    except Exception as e:
+        logging.error(f"Error validating symbol {symbol}: {e}")
+        return False
+
 def get_chart_data(symbol="BTCUSDT"):
     # chart_interval tercihini Preferences.txt dosyasından oku
     interval = "1"
@@ -78,6 +98,11 @@ def get_chart_data(symbol="BTCUSDT"):
                     break
     except Exception:
         interval = "1"
+    
+    # Sembol validasyonu ekle
+    if not validate_symbol(symbol):
+        raise ValueError(f"Invalid symbol: {symbol} - This symbol is not available on Binance")
+    
     # Make the API call only once and store the result in a variable.
     candles = fetch_candles(symbol, interval=f"{interval}m")
     if not candles or not isinstance(candles, list):

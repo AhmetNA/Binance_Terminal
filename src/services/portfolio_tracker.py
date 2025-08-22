@@ -4,10 +4,9 @@ import datetime
 import logging
 from typing import Dict, List
 
-# Add path for imports
-current_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.dirname(current_dir)
-sys.path.append(src_dir)
+# Import paths from centralized path module
+from core.paths import SRC_DIR, PROJECT_ROOT
+sys.path.insert(0, SRC_DIR)
 
 from services.order_service import get_account_data, prepare_client, get_price
 from services.data_manager import data_manager
@@ -140,11 +139,14 @@ class PortfolioTracker:
     def calculate_daily_pnl(self, current_value: float) -> float:
         """Günlük kar/zarar hesaplar."""
         try:
-            # Get yesterday's last portfolio snapshot
+            # Get yesterday's last portfolio snapshot using centralized path
             yesterday = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
             yesterday_snapshots = []
             
-            yesterday_file = os.path.join(data_manager.portfolio_dir, f'portfolio_{yesterday}.json')
+            # Use centralized path from paths.py
+            from core.paths import get_daily_portfolio_file
+            yesterday_file = get_daily_portfolio_file(yesterday)
+            
             if os.path.exists(yesterday_file):
                 import json
                 with open(yesterday_file, 'r', encoding='utf-8') as f:

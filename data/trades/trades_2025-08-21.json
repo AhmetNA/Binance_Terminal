@@ -408,5 +408,176 @@
     },
     "recorded_at": "2025-08-21T18:33:20.492848",
     "id": "20250821_183320_DOGEUSDT"
+  },
+  {
+    "timestamp": "2025-08-21T19:46:53.506327",
+    "symbol": "BTCUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 0.08582,
+    "price": 112590.59,
+    "total_cost": 9662.5244338,
+    "wallet_before": 48314.3385802,
+    "wallet_after": 38651.8141464,
+    "order_id": 16048942,
+    "binance_data": {
+      "symbol": "BTCUSDT",
+      "orderId": 16048942,
+      "orderListId": -1,
+      "clientOrderId": "GKKRB2YG1pgABjimzkcuj0",
+      "transactTime": 1755794813161,
+      "price": "0.00000000",
+      "origQty": "0.08582000",
+      "executedQty": "0.08582000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "9662.52443380",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755794813161,
+      "fills": [
+        {
+          "price": "112590.59000000",
+          "qty": "0.08582000",
+          "commission": "0.00000000",
+          "commissionAsset": "BTC",
+          "tradeId": 3485798
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-21T19:46:53.506327",
+    "id": "20250821_194653_BTCUSDT"
+  },
+  {
+    "timestamp": "2025-08-21T19:48:40.587573",
+    "symbol": "BTCUSDT",
+    "side": "SELL",
+    "type": "Hard_Sell",
+    "quantity": 0.22001,
+    "price": 112605.22,
+    "total_cost": 24774.2744522,
+    "wallet_before": 38651.8141464,
+    "wallet_after": 63426.0885986,
+    "order_id": 16049148,
+    "binance_data": {
+      "symbol": "BTCUSDT",
+      "orderId": 16049148,
+      "orderListId": -1,
+      "clientOrderId": "r7QGR6KRDOLOIpadSqgUKb",
+      "transactTime": 1755794919507,
+      "price": "0.00000000",
+      "origQty": "0.22001000",
+      "executedQty": "0.22001000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "24774.27445220",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "SELL",
+      "workingTime": 1755794919507,
+      "fills": [
+        {
+          "price": "112605.22000000",
+          "qty": "0.22001000",
+          "commission": "0.00000000",
+          "commissionAsset": "USDT",
+          "tradeId": 3485828
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-21T19:48:40.587573",
+    "id": "20250821_194840_BTCUSDT"
+  },
+  {
+    "timestamp": "2025-08-21T20:01:17.586230",
+    "symbol": "RAYUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 607.2,
+    "price": 3.231,
+    "total_cost": 9486.9288,
+    "wallet_before": 63426.0885986,
+    "wallet_after": 53939.1597986,
+    "order_id": 2839321,
+    "binance_data": {
+      "symbol": "RAYUSDT",
+      "orderId": 2839321,
+      "orderListId": -1,
+      "clientOrderId": "vE2LfDUtgYRqE0ltebXOez",
+      "transactTime": 1755795677249,
+      "price": "0.00000000",
+      "origQty": "2935.50000000",
+      "executedQty": "2935.50000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "9486.92880000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755795677249,
+      "fills": [
+        {
+          "price": "3.23100000",
+          "qty": "607.20000000",
+          "commission": "0.00000000",
+          "commissionAsset": "RAY",
+          "tradeId": 193563
+        },
+        {
+          "price": "3.23200000",
+          "qty": "2328.30000000",
+          "commission": "0.00000000",
+          "commissionAsset": "RAY",
+          "tradeId": 193564
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-21T20:01:17.586230",
+    "id": "20250821_200117_RAYUSDT"
+  },
+  {
+    "timestamp": "2025-08-21T20:07:29.150556",
+    "symbol": "RENDERUSDT",
+    "side": "SELL",
+    "type": "Soft_Sell",
+    "quantity": 23.7,
+    "price": 3.52,
+    "total_cost": 83.424,
+    "wallet_before": 53939.1597986,
+    "wallet_after": 54022.5837986,
+    "order_id": 3881026,
+    "binance_data": {
+      "symbol": "RENDERUSDT",
+      "orderId": 3881026,
+      "orderListId": -1,
+      "clientOrderId": "ssWUCgAFESSGr33NC7uxEv",
+      "transactTime": 1755796048812,
+      "price": "0.00000000",
+      "origQty": "23.70000000",
+      "executedQty": "23.70000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "83.42400000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "SELL",
+      "workingTime": 1755796048812,
+      "fills": [
+        {
+          "price": "3.52000000",
+          "qty": "23.70000000",
+          "commission": "0.00000000",
+          "commissionAsset": "USDT",
+          "tradeId": 200417
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-21T20:07:29.150556",
+    "id": "20250821_200729_RENDERUSDT"
   }
 ]

@@ -22,12 +22,11 @@ import os
 import logging
 import sys
 
-# Add path for imports
-current_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.dirname(current_dir)
-sys.path.append(src_dir)
+# Add src to path for core imports (optimized)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.config import PREFERENCES_FILE, FAV_COINS_FILE, SYMBOLS, pending_subscriptions, USDT, TICKER_SUFFIX, RECONNECT_DELAY, COINS_KEY, DYNAMIC_COIN_KEY
+from core.paths import MAIN_LOG_FILE
 
 # Logging configuration
 logging.basicConfig(
@@ -35,21 +34,54 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'logs', 'binance_terminal.log'), encoding='utf-8')
+        logging.FileHandler(MAIN_LOG_FILE, encoding='utf-8')
     ]
 )
 
 ssl_options = {"ssl_version": ssl.PROTOCOL_TLSv1_2}
 
-""" FAVORITE COINS """
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-SRC_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..'))
-PROJECT_ROOT = os.path.abspath(os.path.join(SRC_DIR, '..'))
-
-SETTINGS_DIR = os.path.join(PROJECT_ROOT, 'config')
-
 BINANCE_WS_URL = "wss://stream.binance.com:9443/ws"
+
+# ===== UTILITY FUNCTIONS =====
+
+def id_generator():
+    """Generate unique IDs for WebSocket messages."""
+    n = 1
+    while True:
+        yield n
+        n += 1
+
+id_gen = id_generator()
+
+def format_binance_ticker_symbols(symbols):
+    """
+    @brief Format coin symbols for Binance WebSocket ticker stream.
+    @param symbols List of coin symbols like ['BTCUSDT', 'ETHUSDT'].
+    @return List of formatted symbols like ['btcusdt@ticker'].
+    """
+    return [symbol.lower() + TICKER_SUFFIX for symbol in symbols]
+
+def validate_symbol_for_binance(symbol):
+    """
+    Validates if a symbol exists on Binance by checking exchange info.
+    Returns True if valid, False otherwise.
+    """
+    try:
+        import requests
+        url = "https://api.binance.com/api/v3/exchangeInfo"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            valid_symbols = [s['symbol'] for s in data['symbols']]
+            return symbol.upper() in valid_symbols
+        else:
+            logging.error(f"Failed to fetch exchange info: {response.status_code}")
+            return False
+    except Exception as e:
+        logging.error(f"Error validating symbol {symbol}: {e}")
+        return False
+
+# ===== DATA MANAGEMENT FUNCTIONS =====
 
 def load_fav_coins():
     """
@@ -65,7 +97,6 @@ def load_fav_coins():
         logging.exception(f"Error loading favorite coins: {e}")
         return {COINS_KEY: [], DYNAMIC_COIN_KEY: []}
 
-
 def write_favorite_coins_to_json(data):
     """
     Write the updated favorite coins data back to the JSON configuration file.
@@ -76,7 +107,6 @@ def write_favorite_coins_to_json(data):
     except Exception as e:
         logging.exception(f"Error writing favorite coins: {e}")
 
-
 def load_user_preferences():
     """
     @brief Reads the Preferences.txt file and updates the favorite coins accordingly.
@@ -86,6 +116,8 @@ def load_user_preferences():
     """
     global SYMBOLS
 
+    logging.info(f"Loading user preferences from: {PREFERENCES_FILE}")
+    
     if not os.path.exists(PREFERENCES_FILE):
         logging.warning("Preferences file not found!")
         return
@@ -99,6 +131,7 @@ def load_user_preferences():
 
                 if line.startswith("favorite_coins"):
                     fav_coins_name = [coin.strip() for coin in line.split("=")[1].split(",")]
+                    logging.info(f"Found favorite coins in preferences: {fav_coins_name}")
                     data = load_fav_coins()
 
                     for i, coin_name in enumerate(fav_coins_name):
@@ -111,9 +144,11 @@ def load_user_preferences():
         data = load_fav_coins()
         Fav_symbols = [coin['symbol'] for coin in data.get(COINS_KEY, [])]
         SYMBOLS = format_binance_ticker_symbols(Fav_symbols)
+        logging.info(f"Successfully loaded user preferences. Active symbols: {len(SYMBOLS)} coins")
     except Exception as e:
         logging.exception(f"Error loading user preferences: {e}")
 
+# ===== PRICE UPDATE FUNCTIONS =====
 
 def refresh_coin_price(symbol, new_price):
     """
@@ -129,7 +164,6 @@ def refresh_coin_price(symbol, new_price):
     except Exception as e:
         logging.exception(f"Error refreshing coin price for {symbol}: {e}")
 
-
 def refresh_dynamic_coin_price(symbol, new_price):
     """
     Update the price of the dynamic coin in the JSON file.
@@ -143,6 +177,28 @@ def refresh_dynamic_coin_price(symbol, new_price):
     except Exception as e:
         logging.exception(f"Error refreshing dynamic coin price for {symbol}: {e}")
 
+# ===== WEBSOCKET SUBSCRIPTION FUNCTIONS =====
+
+def subscribe_to_dynamic_coin(symbol_name):
+    """
+    @brief Subscribe to a dynamic coin symbol via WebSocket.
+    @param symbol_name Coin symbol (e.g., 'BTC', 'ETH') without 'USDT'.
+    @return None
+    """
+    base = symbol_name.upper().replace(USDT, "")
+    pair = f"{base.lower()}{USDT.lower()}{TICKER_SUFFIX}"
+    msg = {"method": "SUBSCRIBE", "params": [pair], "id": next(id_gen)}
+
+    if ws.sock and getattr(ws.sock, "connected", False):
+        try:
+            ws.send(json.dumps(msg))
+            logging.info(f"Subscribed to {pair}")
+        except websocket.WebSocketConnectionClosedException:
+            pending_subscriptions.append(pair)
+            logging.warning(f"Socket closed -> added to queue: {pair}")
+    else:
+        pending_subscriptions.append(pair)
+        logging.warning(f"WebSocket is not ready → added to the queue: {pair}")
 
 def set_dynamic_coin_symbol(symbol):
     """
@@ -151,32 +207,27 @@ def set_dynamic_coin_symbol(symbol):
     @return None
     """
     symbol = symbol.upper()
-    symbol = f"{symbol}{USDT}"
+    symbol_with_usdt = f"{symbol}{USDT}"
+    
+    # Sembol validasyonu
+    if not validate_symbol_for_binance(symbol_with_usdt):
+        logging.error(f"Invalid symbol: {symbol_with_usdt} - not available on Binance")
+        raise ValueError(f"Invalid symbol: {symbol} - This symbol is not available on Binance")
+    
     data = load_fav_coins()
     if isinstance(data.get(DYNAMIC_COIN_KEY, []), list) and data[DYNAMIC_COIN_KEY]:
-        data[DYNAMIC_COIN_KEY][0]['symbol'] = symbol
-        data[DYNAMIC_COIN_KEY][0]['name'] = symbol[:-len(USDT)]
+        data[DYNAMIC_COIN_KEY][0]['symbol'] = symbol_with_usdt
+        data[DYNAMIC_COIN_KEY][0]['name'] = symbol[:-len(USDT)] if symbol.endswith(USDT) else symbol
         write_favorite_coins_to_json(data)
-        subscribe_to_dynamic_coin(symbol)
+        subscribe_to_dynamic_coin(symbol_with_usdt)
+        logging.info(f"Successfully set dynamic coin to {symbol_with_usdt}")
+    else:
+        logging.error("Dynamic coin data structure is invalid")
+        raise ValueError("Dynamic coin data structure is invalid")
 
+# ===== WEBSOCKET EVENT HANDLERS =====
 
-def format_binance_ticker_symbols(symbols):
-    """
-    @brief Format coin symbols for Binance WebSocket ticker stream.
-    @param symbols List of coin symbols like ['BTCUSDT', 'ETHUSDT'].
-    @return List of formatted symbols like ['btcusdt@ticker'].
-    """
-    return [symbol.lower() + TICKER_SUFFIX for symbol in symbols]
-
-
-def id_generator():
-    """Generate unique IDs for WebSocket messages."""
-    n = 1
-    while True:
-        yield n
-        n += 1
-
-id_gen = id_generator()
+# ===== WEBSOCKET EVENT HANDLERS =====
 
 def on_message(ws, message):
     """
@@ -205,7 +256,6 @@ def on_message(ws, message):
     except Exception as e:
         logging.exception(f"WebSocket Error: {e}")
 
-
 def on_open(ws):
     """
     @brief WebSocket connection open handler. Subscribes to favorite coins and any queued dynamic coins.
@@ -228,7 +278,6 @@ def on_open(ws):
         ws.send(json.dumps(pending_msg))
         pending_subscriptions.clear()
 
-
 def on_close(ws, close_status_code, close_msg):
     """
     @brief WebSocket connection close handler.
@@ -239,7 +288,6 @@ def on_close(ws, close_status_code, close_msg):
     """
     logging.info("WebSocket connection closed!")
 
-
 def on_error(ws, error):
     """
     @brief WebSocket error handler.
@@ -249,6 +297,8 @@ def on_error(ws, error):
     """
     logging.error(f"WebSocket Error: {error}")
 
+# ===== WEBSOCKET SETUP =====
+
 ws = websocket.WebSocketApp(
     BINANCE_WS_URL,
     on_open=on_open,
@@ -257,9 +307,7 @@ ws = websocket.WebSocketApp(
     on_error=on_error
 )
 
-ssl_options = {"ssl_version": ssl.PROTOCOL_TLSv1_2}
-
-""" THREADING """
+# ===== WEBSOCKET OPERATIONS =====
 
 def run_websocket():
     """
@@ -272,28 +320,7 @@ def run_websocket():
             logging.error(f"WebSocket Error: {e}. Reconnecting in {RECONNECT_DELAY} seconds...")
             time.sleep(RECONNECT_DELAY)
 
-
-def subscribe_to_dynamic_coin(symbol_name):
-    """
-    @brief Subscribe to a dynamic coin symbol via WebSocket.
-    @param symbol_name Coin symbol (e.g., 'BTC', 'ETH') without 'USDT'.
-    @return None
-    """
-    base = symbol_name.upper().replace(USDT, "")
-    pair = f"{base.lower()}{USDT.lower()}{TICKER_SUFFIX}"
-    msg = {"method": "SUBSCRIBE", "params": [pair], "id": next(id_gen)}
-
-    if ws.sock and getattr(ws.sock, "connected", False):
-        try:
-            ws.send(json.dumps(msg))
-            logging.info(f"Subscribed to {pair}")
-        except websocket.WebSocketConnectionClosedException:
-            pending_subscriptions.append(pair)
-            logging.warning(f"Socket closed -> added to queue: {pair}")
-    else:
-        pending_subscriptions.append(pair)
-        logging.warning(f"WebSocket is not ready → added to the queue: {pair}")
-
+# ===== MAIN ENTRY POINTS =====
 
 def start_price_websocket():
     """
@@ -304,7 +331,6 @@ def start_price_websocket():
     thread = threading.Thread(target=run_websocket, daemon=True)
     thread.start()
     logging.info("WebSocket started in background.")
-
 
 def main():
     """

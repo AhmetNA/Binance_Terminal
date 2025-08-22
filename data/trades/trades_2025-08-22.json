@@ -1,0 +1,624 @@
+[
+  {
+    "timestamp": "2025-08-22T13:03:18.519261",
+    "symbol": "DOGEUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 38604.0,
+    "price": 0.21702,
+    "total_cost": 8377.84008,
+    "wallet_before": 55849.0005986,
+    "wallet_after": 47471.1605186,
+    "order_id": 7585745,
+    "binance_data": {
+      "symbol": "DOGEUSDT",
+      "orderId": 7585745,
+      "orderListId": -1,
+      "clientOrderId": "apPJl1KddWVw0xglxDebEl",
+      "transactTime": 1755856998179,
+      "price": "0.00000000",
+      "origQty": "38604.00000000",
+      "executedQty": "38604.00000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "8377.84008000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755856998179,
+      "fills": [
+        {
+          "price": "0.21702000",
+          "qty": "38604.00000000",
+          "commission": "0.00000000",
+          "commissionAsset": "DOGE",
+          "tradeId": 1333987
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T13:03:18.519261",
+    "id": "20250822_130318_DOGEUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T13:18:25.724953",
+    "symbol": "DOGEUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 20135.0,
+    "price": 0.21519,
+    "total_cost": 7120.76665,
+    "wallet_before": 47471.1605186,
+    "wallet_after": 40350.3938686,
+    "order_id": 7586865,
+    "binance_data": {
+      "symbol": "DOGEUSDT",
+      "orderId": 7586865,
+      "orderListId": -1,
+      "clientOrderId": "r6HzIbwXGzAwC36CKtNbNN",
+      "transactTime": 1755857904893,
+      "price": "0.00000000",
+      "origQty": "33090.00000000",
+      "executedQty": "33090.00000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "7120.76665000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755857904893,
+      "fills": [
+        {
+          "price": "0.21519000",
+          "qty": "20135.00000000",
+          "commission": "0.00000000",
+          "commissionAsset": "DOGE",
+          "tradeId": 1334296
+        },
+        {
+          "price": "0.21520000",
+          "qty": "12955.00000000",
+          "commission": "0.00000000",
+          "commissionAsset": "DOGE",
+          "tradeId": 1334297
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T13:18:25.724953",
+    "id": "20250822_131825_DOGEUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T13:18:40.029483",
+    "symbol": "EIGENUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 4554.22,
+    "price": 1.319,
+    "total_cost": 6007.01618,
+    "wallet_before": 40350.3938686,
+    "wallet_after": 34343.3776886,
+    "order_id": 2091405,
+    "binance_data": {
+      "symbol": "EIGENUSDT",
+      "orderId": 2091405,
+      "orderListId": -1,
+      "clientOrderId": "46d1lBRskCriyxPS18g33i",
+      "transactTime": 1755857919681,
+      "price": "0.00000000",
+      "origQty": "4554.22000000",
+      "executedQty": "4554.22000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "6007.01618000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755857919681,
+      "fills": [
+        {
+          "price": "1.31900000",
+          "qty": "4554.22000000",
+          "commission": "0.00000000",
+          "commissionAsset": "EIGEN",
+          "tradeId": 92592
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T13:18:40.029483",
+    "id": "20250822_131840_EIGENUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T13:46:50.019434",
+    "symbol": "EIGENUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 3905.62,
+    "price": 1.314,
+    "total_cost": 5131.98468,
+    "wallet_before": 34343.3776886,
+    "wallet_after": 29211.3930086,
+    "order_id": 2091760,
+    "binance_data": {
+      "symbol": "EIGENUSDT",
+      "orderId": 2091760,
+      "orderListId": -1,
+      "clientOrderId": "8UApabY6ihUAPT9LvJvczh",
+      "transactTime": 1755859609695,
+      "price": "0.00000000",
+      "origQty": "3905.62000000",
+      "executedQty": "3905.62000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "5131.98468000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755859609695,
+      "fills": [
+        {
+          "price": "1.31400000",
+          "qty": "3905.62000000",
+          "commission": "0.00000000",
+          "commissionAsset": "EIGEN",
+          "tradeId": 92593
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T13:46:50.019434",
+    "id": "20250822_134650_EIGENUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T14:01:20.185190",
+    "symbol": "EIGENUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 3334.63,
+    "price": 1.314,
+    "total_cost": 4381.70382,
+    "wallet_before": 29211.3930086,
+    "wallet_after": 24829.6891886,
+    "order_id": 2091904,
+    "binance_data": {
+      "symbol": "EIGENUSDT",
+      "orderId": 2091904,
+      "orderListId": -1,
+      "clientOrderId": "DgixfLDmQq4cOP74U59RSj",
+      "transactTime": 1755860479873,
+      "price": "0.00000000",
+      "origQty": "3334.63000000",
+      "executedQty": "3334.63000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "4381.70382000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755860479873,
+      "fills": [
+        {
+          "price": "1.31400000",
+          "qty": "3334.63000000",
+          "commission": "0.00000000",
+          "commissionAsset": "EIGEN",
+          "tradeId": 92594
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T14:01:20.185190",
+    "id": "20250822_140120_EIGENUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T14:01:50.372893",
+    "symbol": "EIGENUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 2834.44,
+    "price": 1.313,
+    "total_cost": 3721.61972,
+    "wallet_before": 24829.6891886,
+    "wallet_after": 21108.0694686,
+    "order_id": 2091910,
+    "binance_data": {
+      "symbol": "EIGENUSDT",
+      "orderId": 2091910,
+      "orderListId": -1,
+      "clientOrderId": "GmS6gl6Tw3qUpsRtYizLA2",
+      "transactTime": 1755860510014,
+      "price": "0.00000000",
+      "origQty": "2834.44000000",
+      "executedQty": "2834.44000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "3721.61972000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755860510014,
+      "fills": [
+        {
+          "price": "1.31300000",
+          "qty": "2834.44000000",
+          "commission": "0.00000000",
+          "commissionAsset": "EIGEN",
+          "tradeId": 92595
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T14:01:50.372893",
+    "id": "20250822_140150_EIGENUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T14:02:19.836452",
+    "symbol": "EIGENUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 2411.43,
+    "price": 1.313,
+    "total_cost": 3166.20759,
+    "wallet_before": 21108.0694686,
+    "wallet_after": 17941.8618786,
+    "order_id": 2091921,
+    "binance_data": {
+      "symbol": "EIGENUSDT",
+      "orderId": 2091921,
+      "orderListId": -1,
+      "clientOrderId": "QPuAkgNWGpmFUKnmLgS9tc",
+      "transactTime": 1755860539522,
+      "price": "0.00000000",
+      "origQty": "2411.43000000",
+      "executedQty": "2411.43000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "3166.20759000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755860539522,
+      "fills": [
+        {
+          "price": "1.31300000",
+          "qty": "2411.43000000",
+          "commission": "0.00000000",
+          "commissionAsset": "EIGEN",
+          "tradeId": 92596
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T14:02:19.836452",
+    "id": "20250822_140219_EIGENUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T14:07:30.160661",
+    "symbol": "DOGEUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 4212.0,
+    "price": 0.21326,
+    "total_cost": 898.25112,
+    "wallet_before": 17941.8618786,
+    "wallet_after": 17043.6107586,
+    "order_id": 7590575,
+    "binance_data": {
+      "symbol": "DOGEUSDT",
+      "orderId": 7590575,
+      "orderListId": -1,
+      "clientOrderId": "aAzjz9zb8yQltROrEes9d3",
+      "transactTime": 1755860849850,
+      "price": "0.00000000",
+      "origQty": "4212.00000000",
+      "executedQty": "4212.00000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "898.25112000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755860849850,
+      "fills": [
+        {
+          "price": "0.21326000",
+          "qty": "4212.00000000",
+          "commission": "0.00000000",
+          "commissionAsset": "DOGE",
+          "tradeId": 1335314
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T14:07:30.160661",
+    "id": "20250822_140730_DOGEUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T14:16:43.404887",
+    "symbol": "EIGENUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 1298.07,
+    "price": 1.308,
+    "total_cost": 1697.87556,
+    "wallet_before": 17043.6107586,
+    "wallet_after": 15345.7351986,
+    "order_id": 2092094,
+    "binance_data": {
+      "symbol": "EIGENUSDT",
+      "orderId": 2092094,
+      "orderListId": -1,
+      "clientOrderId": "KjjDhsOCPSPNHpPh3btTmO",
+      "transactTime": 1755861403105,
+      "price": "0.00000000",
+      "origQty": "1298.07000000",
+      "executedQty": "1298.07000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "1697.87556000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755861403105,
+      "fills": [
+        {
+          "price": "1.30800000",
+          "qty": "1298.07000000",
+          "commission": "0.00000000",
+          "commissionAsset": "EIGEN",
+          "tradeId": 92597
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T14:16:43.404887",
+    "id": "20250822_141643_EIGENUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T14:16:51.276666",
+    "symbol": "DOGEUSDT",
+    "side": "SELL",
+    "type": "Soft_Sell",
+    "quantity": 16866.0,
+    "price": 0.21229,
+    "total_cost": 3580.48314,
+    "wallet_before": 15345.7351986,
+    "wallet_after": 18926.2183386,
+    "order_id": 7591388,
+    "binance_data": {
+      "symbol": "DOGEUSDT",
+      "orderId": 7591388,
+      "orderListId": -1,
+      "clientOrderId": "nlR4rW2T8vjsn7PJ0BmfJv",
+      "transactTime": 1755861410912,
+      "price": "0.00000000",
+      "origQty": "16866.00000000",
+      "executedQty": "16866.00000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "3580.48314000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "SELL",
+      "workingTime": 1755861410912,
+      "fills": [
+        {
+          "price": "0.21229000",
+          "qty": "16866.00000000",
+          "commission": "0.00000000",
+          "commissionAsset": "USDT",
+          "tradeId": 1335570
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T14:16:51.276666",
+    "id": "20250822_141651_DOGEUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T14:36:12.009636",
+    "symbol": "EIGENUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 1446.96,
+    "price": 1.309,
+    "total_cost": 1894.07064,
+    "wallet_before": 18926.2183386,
+    "wallet_after": 17032.1476986,
+    "order_id": 2092358,
+    "binance_data": {
+      "symbol": "EIGENUSDT",
+      "orderId": 2092358,
+      "orderListId": -1,
+      "clientOrderId": "PCmaRD7M18Y2sdDlDajTMX",
+      "transactTime": 1755862571722,
+      "price": "0.00000000",
+      "origQty": "1446.96000000",
+      "executedQty": "1446.96000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "1894.07064000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755862571722,
+      "fills": [
+        {
+          "price": "1.30900000",
+          "qty": "1446.96000000",
+          "commission": "0.00000000",
+          "commissionAsset": "EIGEN",
+          "tradeId": 92598
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T14:36:12.009636",
+    "id": "20250822_143612_EIGENUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T14:41:33.571740",
+    "symbol": "BTCUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 0.01518,
+    "price": 112188.0,
+    "total_cost": 1703.01384,
+    "wallet_before": 17032.1476986,
+    "wallet_after": 15329.1338586,
+    "order_id": 16187649,
+    "binance_data": {
+      "symbol": "BTCUSDT",
+      "orderId": 16187649,
+      "orderListId": -1,
+      "clientOrderId": "0CRiiuD2CpM4c9XV6Pd2sR",
+      "transactTime": 1755862893274,
+      "price": "0.00000000",
+      "origQty": "0.01518000",
+      "executedQty": "0.01518000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "1703.01384000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755862893274,
+      "fills": [
+        {
+          "price": "112188.00000000",
+          "qty": "0.01518000",
+          "commission": "0.00000000",
+          "commissionAsset": "BTC",
+          "tradeId": 3516565
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T14:41:33.571740",
+    "id": "20250822_144133_BTCUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T14:41:43.935776",
+    "symbol": "DOGEUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 7216.0,
+    "price": 0.21244,
+    "total_cost": 1532.96704,
+    "wallet_before": 15329.1338586,
+    "wallet_after": 13796.1668186,
+    "order_id": 7593475,
+    "binance_data": {
+      "symbol": "DOGEUSDT",
+      "orderId": 7593475,
+      "orderListId": -1,
+      "clientOrderId": "8N3XiOu3s7lWCA7Ec77nH2",
+      "transactTime": 1755862903646,
+      "price": "0.00000000",
+      "origQty": "7216.00000000",
+      "executedQty": "7216.00000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "1532.96704000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755862903646,
+      "fills": [
+        {
+          "price": "0.21244000",
+          "qty": "7216.00000000",
+          "commission": "0.00000000",
+          "commissionAsset": "DOGE",
+          "tradeId": 1336196
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T14:41:43.935776",
+    "id": "20250822_144143_DOGEUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T14:47:48.107613",
+    "symbol": "BTCUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 0.01228,
+    "price": 112362.37,
+    "total_cost": 1379.8099036,
+    "wallet_before": 13796.1668186,
+    "wallet_after": 12416.356915,
+    "order_id": 16189004,
+    "binance_data": {
+      "symbol": "BTCUSDT",
+      "orderId": 16189004,
+      "orderListId": -1,
+      "clientOrderId": "WJRm8O8zs4AWNSWVzVVKDV",
+      "transactTime": 1755863267815,
+      "price": "0.00000000",
+      "origQty": "0.01228000",
+      "executedQty": "0.01228000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "1379.80990360",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755863267815,
+      "fills": [
+        {
+          "price": "112362.37000000",
+          "qty": "0.01228000",
+          "commission": "0.00000000",
+          "commissionAsset": "BTC",
+          "tradeId": 3516690
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T14:47:48.107613",
+    "id": "20250822_144748_BTCUSDT"
+  },
+  {
+    "timestamp": "2025-08-22T14:47:54.893790",
+    "symbol": "ETHUSDT",
+    "side": "BUY",
+    "type": "Soft_Buy",
+    "quantity": 0.2896,
+    "price": 4287.95,
+    "total_cost": 1241.79032,
+    "wallet_before": 12416.356915,
+    "wallet_after": 11174.566595,
+    "order_id": 11694121,
+    "binance_data": {
+      "symbol": "ETHUSDT",
+      "orderId": 11694121,
+      "orderListId": -1,
+      "clientOrderId": "xBUCpFwSTg49d0wajTLVhk",
+      "transactTime": 1755863274611,
+      "price": "0.00000000",
+      "origQty": "0.28960000",
+      "executedQty": "0.28960000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "1241.79032000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "BUY",
+      "workingTime": 1755863274611,
+      "fills": [
+        {
+          "price": "4287.95000000",
+          "qty": "0.28960000",
+          "commission": "0.00000000",
+          "commissionAsset": "ETH",
+          "tradeId": 2698449
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-08-22T14:47:54.893790",
+    "id": "20250822_144754_ETHUSDT"
+  }
+]

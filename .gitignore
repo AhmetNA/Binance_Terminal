@@ -2,6 +2,9 @@
 __pycache__/
 *.pyc
 
+.github
+.vscode
+
 # Ortam değişkenleri
 App/settings/.env
 .env
@@ -9,7 +12,7 @@ App/settings/.env
 # Log dosyaları
 binance_terminal.log
 App/binance_terminal.log
-*.log
+binance_terminal_dev/log
 
 # VSCode çalışma alanı ve geçici dosyalar
 workspace.code-workspace
@@ -22,3 +25,5 @@ App/settings/fav_coin_example.json
 # Build output folders
 build/
 dist/
+
+todos.txt

@@ -8,11 +8,13 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 src_dir = os.path.dirname(current_dir)
 sys.path.append(src_dir)
 
+# Import centralized paths
+from core.paths import FAV_COINS_FILE, BTC_ICON_FILE, FAVORITE_COIN_COUNT, DYNAMIC_COIN_INDEX
+
 from services.order_service import *
 from services.price_service import *
 from ui.components.chart_widget import *
 from services.preferences_service import *
-from core.config import FAVORITE_COIN_COUNT, DYNAMIC_COIN_INDEX, FAV_COINS_FILE
 
 import matplotlib.pyplot as plt
 import mplfinance as mpf  # for candlestick charts
@@ -23,7 +25,7 @@ from PySide6.QtWidgets import (
     QPushButton, QLabel, QLineEdit, QPlainTextEdit, QFrame, QDialog, QMessageBox
 )
 
-
+from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QTimer
 import threading
 
@@ -55,6 +57,10 @@ class MainWindow(QMainWindow):
         try:
             logging.info("MainWindow: Starting initialization...")
             
+            # Pencreyi normal window olarak ayarla (always on top kullanma)
+            # self.setWindowFlags(Qt.Window | Qt.WindowStaysOnTopHint)  # Bu satırı iptal et
+            self.setWindowFlags(Qt.Window)
+            
             # Ekran boyutunu al ve pencereyi ortaya göre biraz sola ve üste kaydır
             screen = QApplication.primaryScreen().geometry()
             win_w, win_h = 600, 400  # Daha küçük başlangıç boyutu
@@ -67,6 +73,10 @@ class MainWindow(QMainWindow):
             self.client = client
             self.setWindowTitle("GAIN")
             self.resize(win_w, win_h)
+            
+            # Uygulama ve pencere simgesini ayarla
+            self.setup_application_icon()
+            
             self.fav_coin_buttons = []
             self.dyn_coin_button = None
             
@@ -83,16 +93,40 @@ class MainWindow(QMainWindow):
             error_label.setStyleSheet("color: red; padding: 20px; font-size: 14px;")
             self.setCentralWidget(error_label)
 
+    def setup_application_icon(self):
+        """Uygulama ve pencere simgesini ayarlar"""
+        try:
+            # Assets klasöründen icon path'i al
+            if os.path.exists(BTC_ICON_FILE):
+                icon = QIcon(BTC_ICON_FILE)
+                
+                # Pencere simgesini ayarla
+                self.setWindowIcon(icon)
+                
+                # Uygulama simgesini de ayarla
+                app = QApplication.instance()
+                if app:
+                    app.setWindowIcon(icon)
+                
+                logging.info(f"Application and window icon set to: {BTC_ICON_FILE}")
+            else:
+                logging.warning(f"Icon file not found: {BTC_ICON_FILE}")
+                
+        except Exception as e:
+            logging.error(f"Error setting application icon: {e}")
+
     def setup_ui(self):
         # Set up the central widget and main layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(5, 5, 5, 5)
-        main_layout.setSpacing(3)
+        main_layout.setSpacing(4)
         self.setup_top_section(main_layout)
         self.setup_terminal(main_layout)  # Terminal geri eklendi
         self.setup_timers()
+        
+        # Always on top artık kullanılmıyor, timer gereksiz
 
     def setup_top_section(self, main_layout):
         top_layout = QHBoxLayout()
@@ -225,44 +259,48 @@ class MainWindow(QMainWindow):
 
     def setup_wallet_and_entry_panel(self, top_layout):
         right_side_layout = QVBoxLayout()
-        right_side_layout.setSpacing(5)  # Küçük spacing
+        right_side_layout.setSpacing(5)  # Boşluğu azalttım (5 → 2)
 
         # Wallet Frame with Settings button and wallet balance
         wallet_frame = QFrame()
-        wallet_frame.setFixedSize(200, 90)  # Boyutu büyüttüm (180x80 → 200x90)
+        wallet_frame.setFixedSize(200, 95)  # Boyutu biraz daha büyüttüm
         wallet_frame.setStyleSheet("""
             QFrame {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                stop:0 #2C3E50, stop:1 #34495E);
-            color: white;
-            border-radius: 12px;
-            border: 2px solid #3498DB;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                    stop:0 #1A1A2E, stop:1 #16213E);
+                color: #E8E8E8;
+                border-radius: 15px;
+                border: 2px solid #0F3460;
             }
         """)
         wallet_layout = QVBoxLayout(wallet_frame)
-        wallet_layout.setContentsMargins(5, 5, 5, 5)  # Margin'leri de artırdım
-        wallet_layout.setAlignment(Qt.AlignCenter)
+        wallet_layout.setContentsMargins(8, 8, 8, 8)  # Daha dengeli margin
+        wallet_layout.setSpacing(2)  # Elemanlar arası boşluk
+        wallet_layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)  # Üstten hizala
 
         # Settings button at the top of the wallet frame
         btn_settings = QPushButton("Settings")
-        btn_settings.setFixedSize(70, 25)  # Biraz daha büyük buton
+        btn_settings.setFixedSize(75, 28)  # Biraz daha büyük buton
         btn_settings.setStyleSheet("""
             QPushButton {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                    stop:0 #3498DB, stop:1 #2980B9);
-                color: white;
-                border: none;
-                border-radius: 6px;
+                    stop:0 #0F3460, stop:1 #16213E);
+                color: #E8E8E8;
+                border: 1px solid #533483;
+                border-radius: 8px;
                 font-size: 11px; 
                 font-weight: bold;
+                padding: 3px;
             }
             QPushButton:hover {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                    stop:0 #5DADE2, stop:1 #3498DB);
+                    stop:0 #533483, stop:1 #0F3460);
+                border: 1px solid #E94560;
             }
             QPushButton:pressed {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                    stop:0 #2980B9, stop:1 #1B4F72);
+                    stop:0 #16213E, stop:1 #1A1A2E);
+                border: 1px solid #533483;
             }
         """)
         btn_settings.clicked.connect(self.open_settings)
@@ -271,36 +309,98 @@ class MainWindow(QMainWindow):
         # Wallet balance label
         self.lbl_wallet = QLabel("Wallet\n$0.00")
         self.lbl_wallet.setAlignment(Qt.AlignCenter)
-        self.lbl_wallet.setStyleSheet("font-size: 12px; font-weight: bold; color: #ECF0F1;")
+        self.lbl_wallet.setStyleSheet("""
+            QLabel {
+                font-size: 13px; 
+                font-weight: bold; 
+                color: #F0F3FF;
+                background: transparent;
+                border: none;
+                padding: 5px;
+                margin: 2px;
+            }
+        """)
         wallet_layout.addWidget(self.lbl_wallet, alignment=Qt.AlignHCenter)
 
         right_side_layout.addWidget(wallet_frame)
 
         # Coin Entry Frame for submitting new coins
         entry_frame = QFrame()
-        entry_frame.setFixedSize(180, 60)  # Daha küçük
+        entry_frame.setFixedSize(200, 120)  # Yüksekliği artırdım
         entry_frame.setStyleSheet("""
             QFrame {
-                background-color: gray;
-                color: black;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                    stop:0 #1A1A2E, stop:1 #16213E);
+                color: #E8E8E8;
                 border-radius: 12px;
+                border: 1px solid #0F3460;
             }
         """)
         entry_layout = QVBoxLayout(entry_frame)
-        entry_layout.setContentsMargins(5, 5, 5, 5)
+        entry_layout.setContentsMargins(8, 6, 8, 6)  # Yan margin'leri artırdım
+        entry_layout.setSpacing(4)
 
         lbl_entry = QLabel("Enter coin")
         lbl_entry.setAlignment(Qt.AlignCenter)
-        lbl_entry.setStyleSheet("font-size: 11px; font-weight: bold;")
+        lbl_entry.setStyleSheet("""
+            QLabel {
+                font-size: 11px; 
+                font-weight: bold;
+                color: #F0F3FF;
+                background: transparent;
+                border: none;
+                margin: 1px;
+            }
+        """)
         entry_layout.addWidget(lbl_entry)
 
         self.coin_input = QLineEdit()
-        self.coin_input.setStyleSheet("font-size: 11px; height: 22px;")
+        self.coin_input.setStyleSheet("""
+            QLineEdit {
+                font-size: 12px; 
+                height: 28px;
+                min-height: 28px;
+                background-color: #16213E;
+                color: #E8E8E8;
+                border: 1px solid #533483;
+                border-radius: 6px;
+                padding: 4px 8px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #E94560;
+                background-color: #1A1A2E;
+            }
+        """)
         self.coin_input.returnPressed.connect(self.submit_coin)
         entry_layout.addWidget(self.coin_input)
 
+        # Input ile submit button arasına boşluk ekle
+        entry_layout.addSpacing(8)
+
         btn_submit = QPushButton("Submit")
-        btn_submit.setStyleSheet("QPushButton { background-color: gray; color: black; border-radius: 6px; font-size: 11px; height: 22px; font-weight: bold; }")
+        btn_submit.setStyleSheet("""
+            QPushButton { 
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                    stop:0 #0F3460, stop:1 #16213E);
+                color: #E8E8E8; 
+                border: 1px solid #533483;
+                border-radius: 6px; 
+                font-size: 11px; 
+                height: 26px; 
+                min-height: 26px;
+                font-weight: bold;
+                padding: 3px;
+            }
+            QPushButton:hover { 
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                    stop:0 #533483, stop:1 #0F3460);
+                border: 1px solid #E94560;
+            }
+            QPushButton:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                    stop:0 #16213E, stop:1 #1A1A2E);
+            }
+        """)
         btn_submit.clicked.connect(self.submit_coin)
         entry_layout.addWidget(btn_submit)
 
@@ -335,6 +435,24 @@ class MainWindow(QMainWindow):
         self.wallet_timer = QTimer(self)
         self.wallet_timer.timeout.connect(self.update_wallet)
         self.wallet_timer.start(1000)  # 1000 ms = 1 second
+
+    def show_and_focus(self):
+        """Pencereyi göster ve ön plana çıkar."""
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        
+        # Windows'ta ek ön plana çıkarma
+        import sys
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                hwnd = int(self.winId())
+                ctypes.windll.user32.SetForegroundWindow(hwnd)
+                ctypes.windll.user32.BringWindowToTop(hwnd)
+                ctypes.windll.user32.ShowWindow(hwnd, 1)  # SW_SHOWNORMAL
+            except Exception as e:
+                logging.warning(f"Could not bring window to front: {e}")
 
     def append_to_terminal(self, text):
         """Terminal'e text ekler."""
@@ -606,9 +724,40 @@ def initialize_gui():
         window.setWindowTitle("Binance Terminal - Professional Trading Interface")
         window.resize(600, 400)  # Daha küçük başlangıç boyutu
         
-        # Pencereyi göster
+        # Pencereyi göster ve ön plana çıkar
         logging.info("Showing main window...")
-        window.show()
+        window.show_and_focus()
+        
+        # Ek olarak Qt metodlarıyla da dene
+        window.raise_()
+        window.activateWindow()
+        
+        # Windows'ta ek olarak ön plana zorla çıkarmak için
+        import sys
+        if sys.platform == "win32":
+            import ctypes
+            from ctypes import wintypes
+            
+            # Windows API fonksiyonları
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+            
+            try:
+                # Pencere handle'ını al
+                hwnd = int(window.winId())
+                
+                # Pencereyi ön plana çıkar
+                user32.SetForegroundWindow(hwnd)
+                user32.SetActiveWindow(hwnd)
+                user32.ShowWindow(hwnd, 1)  # SW_SHOWNORMAL
+                user32.BringWindowToTop(hwnd)
+                
+                # Görev çubuğunda yanıp sönsün
+                user32.FlashWindow(hwnd, True)
+                
+                logging.info("Window brought to foreground using Windows API")
+            except Exception as e:
+                logging.warning(f"Could not use Windows API to bring window to front: {e}")
         
         # WebSocket thread'ini başlat (opsiyonel)
         try:
