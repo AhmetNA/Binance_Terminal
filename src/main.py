@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.logger import setup_logging, get_main_logger
 from ui.main_window import initialize_gui
+from api import close_http_session
 
 def main():
     # Logging'i başlat
@@ -44,6 +45,29 @@ def main():
         logger.info(f"Fatal Error: {e}")
         input("Press Enter to exit...")
         return -1
+    finally:
+        # HTTP session'ı temizle
+        import asyncio
+        try:
+            # Modern asyncio approach - avoid deprecated get_event_loop()
+            try:
+                # Try to get existing loop if available
+                loop = asyncio.get_running_loop()
+                # If we're in a running loop, we can't use run_until_complete
+                # Schedule the cleanup as a task instead
+                asyncio.create_task(close_http_session())
+            except RuntimeError:
+                # No running loop, so we can safely use asyncio.run()
+                asyncio.run(close_http_session())
+        except Exception:
+            # Fallback: try the old method for compatibility
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(close_http_session())
+                loop.close()
+            except Exception:
+                pass
 
 if __name__ == "__main__":
     try:

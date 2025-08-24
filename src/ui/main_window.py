@@ -12,9 +12,14 @@ sys.path.append(src_dir)
 from core.paths import FAV_COINS_FILE, BTC_ICON_FILE, FAVORITE_COIN_COUNT, DYNAMIC_COIN_INDEX
 
 from services.order_service import *
-from services.price_service import *
+from utils.data_utils import load_fav_coins
+from services.live_price_service import (
+    set_dynamic_coin_symbol,
+    start_price_websocket, 
+    subscribe_to_dynamic_coin
+)
 from ui.components.chart_widget import *
-from services.preferences_service import *
+from config.preferences_service import *
 
 import matplotlib.pyplot as plt
 import mplfinance as mpf  # for candlestick charts
@@ -470,10 +475,23 @@ class MainWindow(QMainWindow):
 
     def submit_coin(self):
         """Handles coin submission from the input field."""
-        coin_name = self.coin_input.text()
+        coin_name = self.coin_input.text().strip()
         if coin_name:
-            set_dynamic_coin_symbol(coin_name)
-            self.append_to_terminal(f"New coin submitted: {coin_name}")
+            try:
+                result = set_dynamic_coin_symbol(coin_name)
+                if result:
+                    # Subscribe to the new dynamic coin via WebSocket
+                    subscribe_to_dynamic_coin(result)
+                    self.append_to_terminal(f"New coin submitted: {coin_name} -> {result}")
+                    logging.info(f"Successfully set dynamic coin to {result} and subscribed to WebSocket")
+                else:
+                    self.append_to_terminal(f"Failed to set coin: {coin_name}")
+            except ValueError as e:
+                self.append_to_terminal(f"Error: {str(e)}")
+                logging.error(f"Symbol validation error: {e}")
+            except Exception as e:
+                self.append_to_terminal(f"Unexpected error setting coin: {coin_name}")
+                logging.exception(f"Unexpected error in submit_coin: {e}")
         self.coin_input.clear()
 
     def update_coin_prices(self):
@@ -516,7 +534,7 @@ class MainWindow(QMainWindow):
         symbol = btn.text().split("\n")[0]
         try:
             # Interval bilgisini Preferences.txt'den oku
-            from services.order_service import PREFERENCES_FILE
+            from core.paths import PREFERENCES_FILE
             interval = "1"
             try:
                 with open(PREFERENCES_FILE, 'r') as f:
@@ -647,9 +665,8 @@ class SettingsWindow(QDialog):
 
 
 def load_fav_coin():
-    json_path = FAV_COINS_FILE
-    with open(json_path, 'r') as file:
-        return json.load(file)
+    """Backward compatibility wrapper for load_fav_coins()"""
+    return load_fav_coins()
 
 def retrieve_coin_symbol(col):
     data = load_fav_coin()

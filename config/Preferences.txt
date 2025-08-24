@@ -5,7 +5,7 @@
 # soft_risk = %10
 # hard_risk = %20
 
-soft_risk = %10
+soft_risk = %15
 hard_risk = %40
 
 # Please enter the percentage value for acceptable price volatility.

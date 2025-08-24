@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch, Mock
-from src.services.price_service import format_binance_ticker_symbols, load_fav_coins
+from src.utils.symbol_utils import format_binance_ticker_symbols
+from src.utils.data_utils import load_fav_coins
 
 
 class TestPriceService(unittest.TestCase):
@@ -11,8 +12,8 @@ class TestPriceService(unittest.TestCase):
         expected = ['btcusdt@ticker', 'ethusdt@ticker']
         self.assertEqual(formatted, expected)
     
-    @patch('src.services.price_service.open')
-    @patch('src.services.price_service.json.load')
+    @patch('src.utils.data_utils.open')
+    @patch('src.utils.data_utils.json.load')
     def test_load_fav_coins(self, mock_json_load, mock_open):
         # Mock JSON data
         mock_data = {

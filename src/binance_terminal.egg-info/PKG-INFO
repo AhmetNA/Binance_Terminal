@@ -1,3 +1,49 @@
+Metadata-Version: 2.4
+Name: binance-terminal
+Version: 1.0.0
+Summary: A professional trading application for Binance cryptocurrency exchange
+Author-email: Your Name <your.email@example.com>
+License: MIT
+Project-URL: Homepage, https://github.com/yourusername/binance-terminal
+Project-URL: Repository, https://github.com/yourusername/binance-terminal.git
+Project-URL: Documentation, https://github.com/yourusername/binance-terminal/docs
+Project-URL: Bug Tracker, https://github.com/yourusername/binance-terminal/issues
+Keywords: binance,trading,cryptocurrency,gui
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Financial and Insurance Industry
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Topic :: Office/Business :: Financial :: Investment
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: python-binance==1.0.19
+Requires-Dist: PySide6==6.8.1
+Requires-Dist: matplotlib==3.9.3
+Requires-Dist: mplfinance==0.12.10b0
+Requires-Dist: pandas==2.2.3
+Requires-Dist: requests==2.32.3
+Requires-Dist: python-dotenv==1.0.1
+Requires-Dist: websocket-client==1.8.0
+Requires-Dist: numpy==2.2.1
+Requires-Dist: aiohttp==3.10.10
+Provides-Extra: dev
+Requires-Dist: pytest>=6.0.0; extra == "dev"
+Requires-Dist: pytest-cov>=2.12.0; extra == "dev"
+Requires-Dist: black>=21.0.0; extra == "dev"
+Requires-Dist: flake8>=3.9.0; extra == "dev"
+Requires-Dist: mypy>=0.910; extra == "dev"
+Requires-Dist: pre-commit>=2.15.0; extra == "dev"
+Requires-Dist: pyinstaller==6.11.0; extra == "dev"
+Provides-Extra: build
+Requires-Dist: pyinstaller==6.11.0; extra == "build"
+Dynamic: license-file
+
 # Binance Terminal
 
 A professional trading application for Binance cryptocurrency exchange with real-time price monitoring and automated trading capabilities.

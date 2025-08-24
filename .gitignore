@@ -10,7 +10,10 @@ App/settings/.env
 .env
 
 # Log dosyaları
-binance_terminal.log
+*.log
+logs/
+**/logs/
+binance_terminal*.log
 App/binance_terminal.log
 binance_terminal_dev/log
 

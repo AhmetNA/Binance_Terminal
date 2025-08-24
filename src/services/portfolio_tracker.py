@@ -8,8 +8,10 @@ from typing import Dict, List
 from core.paths import SRC_DIR, PROJECT_ROOT
 sys.path.insert(0, SRC_DIR)
 
-from services.order_service import get_account_data, prepare_client, get_price
-from services.data_manager import data_manager
+from services.account_service import get_account_data
+from services.client_service import prepare_client
+from utils.trading_utils import get_price
+from data.data_manager import data_manager
 
 """
 portfolio_tracker.py

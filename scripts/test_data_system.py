@@ -14,9 +14,9 @@ project_root = os.path.dirname(current_dir)
 src_dir = os.path.join(project_root, 'src')
 sys.path.insert(0, src_dir)
 
-from services.data_manager import data_manager
+from data.data_manager import data_manager
 from services.portfolio_tracker import portfolio_tracker
-from services.analytics_service import analytics_service
+from data.analytics_service import analytics_service
 
 def test_data_manager():
     """Data manager'ı test eder."""

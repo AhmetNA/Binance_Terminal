@@ -67,7 +67,7 @@ def set_preference(key: str, new_value: str) -> str:
         # 🔄 CACHE RELOAD: Risk preferences değiştiyse cache'i temizle
         if key in ['soft_risk', 'hard_risk']:
             try:
-                from services.order_service import force_preferences_reload
+                from config.preferences_manager import force_preferences_reload
                 new_prefs = force_preferences_reload()
                 logging.info(f"✅ Preferences cache reloaded: {new_prefs}")
             except Exception as cache_error:

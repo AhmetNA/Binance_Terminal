@@ -9,8 +9,8 @@ echo Python version:
 python --version
 
 echo.
-echo Testing Python path and imports...
-python -c "import sys; print('Python path OK'); import PySide6; print('PySide6 OK')"
+echo Checking installation...
+python -c "import sys; print('Python path OK'); import PySide6; print('PySide6 OK'); import binance; print('python-binance OK')"
 
 echo.
 echo Starting main application...

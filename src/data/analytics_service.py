@@ -3,7 +3,7 @@ import datetime
 from typing import Dict, List, Tuple
 
 from core.paths import TRADES_DIR, ANALYTICS_DIR, get_daily_trades_file
-from services.data_manager import data_manager
+from data.data_manager import data_manager
 
 """
 analytics_service.py
