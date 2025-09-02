@@ -1,6 +1,7 @@
 # Python cache ve derleme dosyaları
 __pycache__/
 *.pyc
+*.egg-info/
 
 .github
 .vscode

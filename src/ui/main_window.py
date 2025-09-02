@@ -13,6 +13,7 @@ from core.paths import FAV_COINS_FILE, BTC_ICON_FILE, FAVORITE_COIN_COUNT, DYNAM
 
 from services.order_service import *
 from utils.data_utils import load_fav_coins
+from utils.symbol_utils import view_coin_format
 from services.live_price_service import (
     set_dynamic_coin_symbol,
     start_price_websocket, 
@@ -479,13 +480,19 @@ class MainWindow(QMainWindow):
         if coin_name:
             try:
                 result = set_dynamic_coin_symbol(coin_name)
-                if result:
+                if result and result.get('success'):
+                    # Extract binance_ticker from the result dictionary
+                    binance_ticker = result.get('binance_ticker')
+                    view_coin_name = result.get('view_coin_name')
+                    
                     # Subscribe to the new dynamic coin via WebSocket
-                    subscribe_to_dynamic_coin(result)
-                    self.append_to_terminal(f"New coin submitted: {coin_name} -> {result}")
-                    logging.info(f"Successfully set dynamic coin to {result} and subscribed to WebSocket")
+                    subscribe_to_dynamic_coin(binance_ticker)
+                    self.append_to_terminal(f"New coin submitted: {coin_name} -> {view_coin_name} ({binance_ticker})")
+                    logging.info(f"Successfully set dynamic coin to {view_coin_name} ({binance_ticker}) and subscribed to WebSocket")
                 else:
-                    self.append_to_terminal(f"Failed to set coin: {coin_name}")
+                    error_msg = result.get('error_message', 'Unknown error') if result else 'Failed to set coin'
+                    self.append_to_terminal(f"Failed to set coin {coin_name}: {error_msg}")
+                    logging.warning(f"Failed to set dynamic coin {coin_name}: {error_msg}")
             except ValueError as e:
                 self.append_to_terminal(f"Error: {str(e)}")
                 logging.error(f"Symbol validation error: {e}")
@@ -503,14 +510,18 @@ class MainWindow(QMainWindow):
                 coin_data = data['coins'][i]
                 symbol = coin_data.get('symbol', f"COIN_{i}")
                 price = coin_data.get('values', {}).get('current', "0.00")
-                if btn.text() != f"{symbol}\n{price}":
-                    btn.setText(f"{symbol}\n{price}")
+                # Format symbol using view_coin_format for display
+                display_symbol = view_coin_format(symbol)
+                if btn.text() != f"{display_symbol}\n{price}":
+                    btn.setText(f"{display_symbol}\n{price}")
             # Update dynamic coin button
             dyn_data = data['dynamic_coin'][0]
             symbol = dyn_data.get('symbol', "DYN_COIN")
             price = dyn_data.get('values', {}).get('current', "0.00")
-            if self.dyn_coin_button.text() != f"{symbol}\n{price}":
-                self.dyn_coin_button.setText(f"{symbol}\n{price}")
+            # Format symbol using view_coin_format for display
+            display_symbol = view_coin_format(symbol)
+            if self.dyn_coin_button.text() != f"{display_symbol}\n{price}":
+                self.dyn_coin_button.setText(f"{display_symbol}\n{price}")
         except Exception as e:
             self.show_error_message(f"Error updating coin prices: {e}")
 
@@ -531,7 +542,9 @@ class MainWindow(QMainWindow):
 
     def show_coin_details(self, btn):
         """Displays a candlestick chart for the selected coin."""
-        symbol = btn.text().split("\n")[0]
+        display_symbol = btn.text().split("\n")[0]
+        # Convert display format (BTC-USDT) back to Binance format (BTCUSDT) for API calls
+        symbol = display_symbol.replace('-', '') if '-' in display_symbol else display_symbol
         try:
             # Interval bilgisini Preferences.txt'den oku
             from core.paths import PREFERENCES_FILE
@@ -698,15 +711,15 @@ def order_buttons(self, style, col):
         else:
             actual_diff = new_balance - old_balance
 
-        operation = "Bought" if "Buy" in style else "Sold"
-        action_type = "Hard" if "Hard" in style else "Soft"
-        balance_change = f"Balance: previous {old_balance:.2f} -> current {new_balance:.2f}"
-        diff_info = f"(expected {'cost' if 'Buy' in style else 'received'}: {cost_or_received:.2f}, actual diff: {actual_diff:.2f})"
-
+        operation = "BUY" if "Buy" in style else "SELL"
+        action_type = "H" if "Hard" in style else "S"
+        
+        # Compact terminal output
         self.append_to_terminal(
-            f"{action_type} {operation} {symbol}: "
-            f"{'cost' if 'Buy' in style else 'received'} {cost_or_received:.2f} USDT "
-            f"at {price:.2f} for {amount:.6f}. {balance_change} {diff_info}"
+            f"[{action_type}] {operation} {symbol} | "
+            f"{amount:.2f} @ ${price:.2f} | "
+            f"Total: ${cost_or_received:.2f} | "
+            f"Balance: ${new_balance:.2f}"
         )
     except Exception as e:
         self.append_to_terminal(f"Error processing {style} for {symbol}: {e}")

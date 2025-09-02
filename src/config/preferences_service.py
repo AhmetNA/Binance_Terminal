@@ -77,7 +77,16 @@ def set_preference(key: str, new_value: str) -> str:
         logging.exception(f"Error writing preferences file: {e}")
         return f"Error writing preferences file: {e}"
 
-    return f"{key} preference updated to {new_value} - changes applied immediately!"
+    # More user-friendly message
+    friendly_names = {
+        'soft_risk': 'Soft Risk Level',
+        'hard_risk': 'Hard Risk Level',
+        'default_coin': 'Default Coin',
+        'auto_refresh': 'Auto Refresh'
+    }
+    
+    display_name = friendly_names.get(key, key.replace('_', ' ').title())
+    return f"✅ {display_name} set to {new_value}"
 
 
 def validate_coin_symbol(coin_symbol: str) -> bool:
@@ -119,7 +128,7 @@ def update_favorite_coin(old_coin: str, new_coin: str) -> str:
     # Coin symbol validasyonu ekle
     if not validate_coin_symbol(new_coin):
         logging.warning(f"Invalid coin symbol: {new_coin} - not available on Binance")
-        return f"❌ Invalid coin symbol: {new_coin} - This symbol is not available on Binance"
+        return f"❌ {new_coin} is not available on Binance. Please check the symbol and try again."
     
     try:
         with open(PREFERENCES_FILE, 'r') as file:
@@ -137,7 +146,7 @@ def update_favorite_coin(old_coin: str, new_coin: str) -> str:
             
             if new_coin in coins:
                 logging.warning(f"Coin {new_coin} is already in favorites list")
-                return "The coin is already on the fav coin list"
+                return f"⚠️ {new_coin} is already in your favorites list"
             
             try:
                 idx = coins.index(old_coin)
@@ -162,4 +171,4 @@ def update_favorite_coin(old_coin: str, new_coin: str) -> str:
         return f"Error writing preferences file: {e}"
     
     if coin_added:
-        return f"{new_coin} coin added to fav coin list please restart the application to see the changes"
+        return f"✅ {new_coin} added to favorites. Please restart the app to see changes."

@@ -30,7 +30,12 @@ from core.paths import MAIN_LOG_FILE
 # Import utility functions
 from utils.symbol_utils import (
     validate_symbol_for_binance,
-    validate_symbol_simple
+    validate_symbol_simple,
+    validate_and_format_symbol,
+    format_user_input_to_binance_ticker,
+    process_user_coin_input,
+    validate_coin_before_setting,
+    view_coin_format
 )
 from utils.data_utils import (
     load_fav_coins,
@@ -82,53 +87,77 @@ def refresh_dynamic_coin_price(symbol, new_price):
     except Exception as e:
         logging.exception(f"Error refreshing dynamic coin price for {symbol}: {e}")
 
-def set_dynamic_coin_symbol(symbol):
-    """Set and validate dynamic coin symbol"""
-    original_symbol = symbol
-    symbol = symbol.upper().strip()
+def set_dynamic_coin_symbol(user_input):
+    """
+    Set and validate dynamic coin symbol with comprehensive validation flow
+    Args:
+        user_input: User's coin input (e.g., 'btc', 'BTC', 'bitcoin')
+    Returns:
+        dict: {
+            'success': bool,
+            'binance_ticker': str,  # For websocket subscription
+            'view_coin_name': str,  # For display
+            'error_message': str    # Error message if failed
+        }
+    """
+    logging.info(f"Attempting to set dynamic coin: {user_input}")
     
-    # If symbol doesn't end with USDT, add it
-    if not symbol.endswith(USDT):
-        symbol_with_usdt = f"{symbol}{USDT}"
-    else:
-        symbol_with_usdt = symbol
-    
-    logging.info(f"Attempting to set dynamic coin: {original_symbol} -> {symbol_with_usdt}")
-    
-    # Try both validation methods
-    is_valid = False
     try:
-        # First try the simple validation (faster, no async issues)
-        if validate_symbol_simple(symbol_with_usdt):
-            is_valid = True
-            logging.info(f"Symbol {symbol_with_usdt} validated using simple check")
+        # Process user input with comprehensive validation
+        result = process_user_coin_input(user_input)
+        
+        if not result['success']:
+            logging.error(f"Coin validation failed: {result['error_message']}")
+            return {
+                'success': False,
+                'binance_ticker': '',
+                'view_coin_name': '',
+                'error_message': result['error_message']
+            }
+        
+        # Extract validated data
+        binance_ticker = result['binance_ticker']
+        view_coin_name = result['view_coin_name']
+        
+        # Update dynamic coin data with both ticker and view name
+        data = load_fav_coins()
+        if isinstance(data.get(DYNAMIC_COIN_KEY, []), list) and data[DYNAMIC_COIN_KEY]:
+            # Store binance ticker for websocket subscription
+            data[DYNAMIC_COIN_KEY][0]['symbol'] = binance_ticker
+            # Store view name for user display
+            data[DYNAMIC_COIN_KEY][0]['name'] = view_coin_name
+            # Store original user input for reference
+            data[DYNAMIC_COIN_KEY][0]['original_input'] = result['original_input']
+            
+            write_favorite_coins_to_json(data)
+            
+            logging.info(f"Successfully set dynamic coin - Ticker: {binance_ticker}, View: {view_coin_name}")
+            
+            return {
+                'success': True,
+                'binance_ticker': binance_ticker,
+                'view_coin_name': view_coin_name,
+                'error_message': ''
+            }
         else:
-            # Fallback to async validation if simple check fails
-            is_valid = validate_symbol_for_binance(symbol_with_usdt)
-            if is_valid:
-                logging.info(f"Symbol {symbol_with_usdt} validated using API check")
+            error_msg = "Dynamic coin data structure is invalid"
+            logging.error(error_msg)
+            return {
+                'success': False,
+                'binance_ticker': '',
+                'view_coin_name': '',
+                'error_message': error_msg
+            }
+            
     except Exception as e:
-        logging.error(f"Symbol validation failed for {symbol_with_usdt}: {e}")
-        # For common symbols, proceed anyway
-        if validate_symbol_simple(symbol_with_usdt):
-            is_valid = True
-            logging.warning(f"Using simple validation for {symbol_with_usdt}")
-    
-    if not is_valid:
-        logging.error(f"Invalid symbol: {symbol_with_usdt} - not available on Binance")
-        raise ValueError(f"Invalid symbol: {original_symbol} - This symbol is not available on Binance")
-    
-    data = load_fav_coins()
-    if isinstance(data.get(DYNAMIC_COIN_KEY, []), list) and data[DYNAMIC_COIN_KEY]:
-        data[DYNAMIC_COIN_KEY][0]['symbol'] = symbol_with_usdt
-        data[DYNAMIC_COIN_KEY][0]['name'] = symbol[:-len(USDT)] if symbol.endswith(USDT) else symbol
-        write_favorite_coins_to_json(data)
-        logging.info(f"Successfully set dynamic coin to {symbol_with_usdt}")
-        return symbol_with_usdt
-    else:
-        logging.error("Dynamic coin data structure is invalid")
-        return None
-        raise ValueError("Dynamic coin data structure is invalid")
+        error_msg = f"Dynamic coin ayarlanırken hata oluştu: {str(e)}"
+        logging.error(f"Error setting dynamic coin '{user_input}': {e}")
+        return {
+            'success': False,
+            'binance_ticker': '',
+            'view_coin_name': '',
+            'error_message': error_msg
+        }
 
 # ===== WEBSOCKET UTILITY FUNCTIONS =====
 
@@ -159,11 +188,12 @@ def unsubscribe_from_symbol(symbol_pair):
 
 # ===== WEBSOCKET SUBSCRIPTION FUNCTIONS =====
 
-def subscribe_to_dynamic_coin(symbol_name):
-    """Subscribe to dynamic coin price updates via WebSocket"""
+def subscribe_to_dynamic_coin(binance_ticker):
+    """Subscribe to dynamic coin price updates via WebSocket using binance ticker"""
     global current_dynamic_coin_subscription
     
-    base = symbol_name.upper().replace(USDT, "")
+    # binance_ticker already in format like 'BTCUSDT'
+    base = binance_ticker.upper().replace(USDT, "")
     pair = f"{base.lower()}{USDT.lower()}{TICKER_SUFFIX}"
     
     # Unsubscribe from previous dynamic coin if it exists
@@ -177,7 +207,7 @@ def subscribe_to_dynamic_coin(symbol_name):
         try:
             ws.send(json.dumps(msg))
             current_dynamic_coin_subscription = pair
-            logging.info(f"Subscribed to dynamic coin: {pair}")
+            logging.info(f"Subscribed to dynamic coin: {pair} (from ticker: {binance_ticker})")
         except websocket.WebSocketConnectionClosedException:
             pending_subscriptions.append(pair)
             logging.warning(f"Socket closed -> added to queue: {pair}")
@@ -354,6 +384,36 @@ def get_websocket_status():
     }
 
 # ===== MAIN ENTRY POINTS =====
+
+def set_and_subscribe_dynamic_coin(user_input):
+    """
+    Complete flow: Set dynamic coin and subscribe to WebSocket
+    Args:
+        user_input: User's coin input (e.g., 'btc', 'BTC', 'bitcoin')
+    Returns:
+        dict: Result of the operation
+    """
+    # Step 1: Set dynamic coin with validation
+    result = set_dynamic_coin_symbol(user_input)
+    
+    if not result['success']:
+        logging.error(f"Failed to set dynamic coin: {result['error_message']}")
+        return result
+    
+    # Step 2: Subscribe to WebSocket with binance ticker
+    try:
+        subscribe_to_dynamic_coin(result['binance_ticker'])
+        logging.info(f"Successfully set and subscribed to dynamic coin: {result['view_coin_name']}")
+        return result
+    except Exception as e:
+        error_msg = f"WebSocket subscription failed: {str(e)}"
+        logging.error(error_msg)
+        return {
+            'success': False,
+            'binance_ticker': result['binance_ticker'],
+            'view_coin_name': result['view_coin_name'],
+            'error_message': error_msg
+        }
 
 def main():
     """

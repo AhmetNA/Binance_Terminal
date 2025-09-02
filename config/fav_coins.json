@@ -4,7 +4,7 @@
             "name": "AAVE",
             "symbol": "AAVEUSDT",
             "values": {
-                "current": 354.11,
+                "current": 306.73,
                 "15_min_ago": 2.4
             }
         },
@@ -12,7 +12,7 @@
             "name": "ETH",
             "symbol": "ETHUSDT",
             "values": {
-                "current": 4914.76,
+                "current": 4297.69,
                 "15_min_ago": 2.4
             }
         },
@@ -20,7 +20,7 @@
             "name": "BTC",
             "symbol": "BTCUSDT",
             "values": {
-                "current": 114487.4,
+                "current": 109340.53,
                 "15_min_ago": 2.4
             }
         },
@@ -28,7 +28,7 @@
             "name": "DOGE",
             "symbol": "DOGEUSDT",
             "values": {
-                "current": 0.23674,
+                "current": 0.20858,
                 "15_min_ago": 2.4
             }
         },
@@ -36,19 +36,20 @@
             "name": "EIGEN",
             "symbol": "EIGENUSDT",
             "values": {
-                "current": 1.441,
+                "current": 1.175,
                 "15_min_ago": 2.4
             }
         }
     ],
     "dynamic_coin": [
         {
-            "name": "DOGE",
-            "symbol": "DOGEUSDT",
+            "name": "SOL-USDT",
+            "symbol": "SOLUSDT",
             "values": {
-                "current": 0.23674,
+                "current": 199.18,
                 "15_min_ago": 2.4
-            }
+            },
+            "original_input": "sol"
         }
     ]
 }
