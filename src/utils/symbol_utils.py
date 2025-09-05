@@ -30,7 +30,7 @@ def validate_symbol_for_binance(symbol):
             data = response.json()
             valid_symbols = [s['symbol'] for s in data['symbols']]
             is_valid = symbol.upper() in valid_symbols
-            logging.info(f"API validation for {symbol}: {is_valid}")
+            logging.debug(f"API validation for {symbol}: {is_valid}")
             return is_valid
         else:
             logging.error(f"Failed to fetch exchange info: {response.status_code}")
@@ -141,14 +141,14 @@ def validate_and_format_symbol(symbol):
         # First try the simple validation (fastest, no network)
         if validate_symbol_simple(binance_ticker):
             is_valid = True
-            logging.info(f"Symbol {binance_ticker} validated using simple check")
+            # logging.debug(f"Symbol {binance_ticker} validated using simple check")
         else:
             # If simple check fails, try API validation
-            logging.info(f"Simple validation failed for {binance_ticker}, trying API validation...")
+            logging.debug(f"Simple validation failed for {binance_ticker}, trying API validation...")
             try:
                 is_valid = validate_symbol_for_binance(binance_ticker)
                 if is_valid:
-                    logging.info(f"Symbol {binance_ticker} validated using API check")
+                    logging.debug(f"Symbol {binance_ticker} validated using API check")
                 else:
                     logging.warning(f"Symbol {binance_ticker} not found on Binance")
             except Exception as api_error:
@@ -249,14 +249,14 @@ def process_user_coin_input(user_input):
         
         if validate_symbol_simple(binance_ticker):
             is_valid = True
-            logging.info(f"Symbol {binance_ticker} validated using simple check")
+            # logging.debug(f"Symbol {binance_ticker} validated using simple check")
         else:
             # Simple check başarısızsa API validation dene
-            logging.info(f"Simple validation failed for {binance_ticker}, trying API validation...")
+            logging.debug(f"Simple validation failed for {binance_ticker}, trying API validation...")
             try:
                 is_valid = validate_symbol_for_binance(binance_ticker)
                 if is_valid:
-                    logging.info(f"Symbol {binance_ticker} validated using API check")
+                    logging.debug(f"Symbol {binance_ticker} validated using API check")
                 else:
                     logging.warning(f"Symbol {binance_ticker} not found on Binance")
             except Exception as api_error:
@@ -275,7 +275,7 @@ def process_user_coin_input(user_input):
         # View coin name oluştur
         view_coin_name = view_coin_format(binance_ticker)
         
-        logging.info(f"Successfully processed coin input: {original_input} -> Ticker: {binance_ticker}, View: {view_coin_name}")
+        logging.debug(f"Successfully processed coin input: {original_input} -> Ticker: {binance_ticker}, View: {view_coin_name}")
         
         return {
             'success': True,

@@ -6,7 +6,7 @@
 # hard_risk = %20
 
 soft_risk = %15
-hard_risk = %20
+hard_risk = %35
 
 # Please enter the percentage value for acceptable price volatility.
 # Example:
@@ -18,7 +18,9 @@ accepted_price_volatility = %3
 # Please enter only 5 coin name
 # Example:
 # favorite_coins = AAVE, ETH, BTC, DOGE, RAY
+# dynamic_coin = SOL
 # Please write only coin symbol with big letters
 
-favorite_coins = AAVE, ETH, BTC, DOGE, EIGEN
-chart_interval = %1
+favorite_coins = LTC, SOL, BTC, ETH, DOGE
+dynamic_coin = ADA
+chart_interval = 1

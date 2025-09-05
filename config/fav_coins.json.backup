@@ -1,55 +1,60 @@
 {
     "coins": [
         {
-            "name": "AAVE",
-            "symbol": "AAVEUSDT",
+            "name": "LTC",
+            "symbol": "LTCUSDT",
+            "original_input": "LTC",
             "values": {
-                "current": 306.73,
-                "15_min_ago": 2.4
+                "current": 113.78,
+                "15_min_ago": "0.00"
             }
         },
         {
-            "name": "ETH",
-            "symbol": "ETHUSDT",
+            "name": "SOL",
+            "symbol": "SOLUSDT",
+            "original_input": "SOL",
             "values": {
-                "current": 4297.69,
-                "15_min_ago": 2.4
+                "current": 208.02,
+                "15_min_ago": "0.00"
             }
         },
         {
             "name": "BTC",
             "symbol": "BTCUSDT",
+            "original_input": "BTC",
             "values": {
-                "current": 109340.53,
-                "15_min_ago": 2.4
+                "current": 112852.0,
+                "15_min_ago": "0.00"
+            }
+        },
+        {
+            "name": "ETH",
+            "symbol": "ETHUSDT",
+            "original_input": "ETH",
+            "values": {
+                "current": 4455.41,
+                "15_min_ago": "0.00"
             }
         },
         {
             "name": "DOGE",
             "symbol": "DOGEUSDT",
+            "original_input": "DOGE",
             "values": {
-                "current": 0.20858,
-                "15_min_ago": 2.4
-            }
-        },
-        {
-            "name": "EIGEN",
-            "symbol": "EIGENUSDT",
-            "values": {
-                "current": 1.175,
-                "15_min_ago": 2.4
+                "current": 0.21923,
+                "15_min_ago": "0.00"
             }
         }
     ],
     "dynamic_coin": [
         {
-            "name": "SOL-USDT",
-            "symbol": "SOLUSDT",
+            "name": "ADA",
+            "symbol": "ADAUSDT",
             "values": {
-                "current": 199.19,
+                "current": 0.8444,
                 "15_min_ago": 2.4
             },
-            "original_input": "sol"
+            "original_input": "ADA"
         }
     ]
 }

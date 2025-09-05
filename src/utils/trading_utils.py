@@ -83,7 +83,7 @@ def get_symbol_info(client, symbol):
                     'permissions': symbol_info.get('permissions', [])
                 }
                 
-                logging.info(f"Symbol info retrieved for {symbol}")
+                logging.debug(f"Symbol info retrieved for {symbol}")
                 return symbol_data
         
         # Symbol bulunamadıysa hata fırlat
@@ -172,7 +172,7 @@ def get_market_data(client, symbol):
             'low_24h': float(ticker_24hr['lowPrice'])
         }
         
-        logging.info(f"Market data retrieved for {symbol}")
+        logging.debug(f"Market data retrieved for {symbol}")
         return market_data
         
     except Exception as e:

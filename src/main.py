@@ -18,7 +18,7 @@ def main():
         # PySide6 import kontrolü
         try:
             from PySide6.QtWidgets import QApplication
-            logger.info("PySide6 imported successfully")
+            logger.debug("PySide6 imported successfully")
         except ImportError as e:
             logger.error(f"PySide6 import failed: {e}")
             print("Error: PySide6 is not installed. Please install it with: pip install PySide6")
@@ -29,7 +29,7 @@ def main():
         app = QApplication(sys.argv)
         app.setApplicationName("Binance Terminal")
         app.setApplicationVersion("1.0")
-        logger.info("QApplication created")
+        logger.debug("QApplication created")
         
         # Ana GUI'yi başlat
         exit_code = initialize_gui()

@@ -15,6 +15,138 @@ FAV_COINS_KEY = "favorite_coins"
 USDT_SUFFIX = "USDT"
 PERCENT_SIGN = "%"
 
+# Global reference for UI notification callback
+_favorites_update_callback = None
+
+def set_favorites_update_callback(callback):
+    """Set the callback function to be called when favorites are updated."""
+    global _favorites_update_callback
+    _favorites_update_callback = callback
+
+def _notify_favorites_updated():
+    """Notify the UI that favorites have been updated."""
+    global _favorites_update_callback
+    if _favorites_update_callback:
+        _favorites_update_callback()
+
+def restart_websocket_for_coin_change():
+    """
+    Restart WebSocket connection when coin settings are changed.
+    Optimized async version for faster execution.
+    """
+    import asyncio
+    import threading
+    
+    async def async_restart_websocket():
+        """Asynchronous WebSocket restart implementation with retry mechanism"""
+        max_retries = 2
+        retry_delay = 2  # seconds
+        
+        for attempt in range(max_retries + 1):
+            try:
+                if attempt == 0:
+                    logging.info("🔄 Starting optimized WebSocket restart...")
+                else:
+                    logging.info(f"🔄 Retry attempt {attempt}/{max_retries} for WebSocket restart...")
+                    logging.info("📢 Birazdan tekrardan bağlantı kurulacaktır, lütfen bekleyiniz...")
+                
+                # Import WebSocket functions
+                from services.live_price_service import (
+                    stop_websocket, 
+                    restart_websocket_with_new_symbols,
+                    get_websocket_status
+                )
+                
+                # Step 1: Stop current WebSocket (non-blocking)
+                logging.info("1️⃣ Stopping current WebSocket connection...")
+                await asyncio.get_event_loop().run_in_executor(None, stop_websocket)
+                
+                # Step 2: Minimal wait for clean shutdown
+                await asyncio.sleep(0.5)
+                
+                # Step 3: Start restart process in parallel with status monitoring
+                logging.info("2️⃣ Restarting WebSocket with updated coin preferences...")
+                
+                # Run restart and status check concurrently
+                restart_task = asyncio.get_event_loop().run_in_executor(
+                    None, restart_websocket_with_new_symbols
+                )
+                
+                # Wait for restart with timeout
+                await asyncio.wait_for(restart_task, timeout=5.0)
+                
+                # Step 4: Quick status verification
+                await asyncio.sleep(0.3)
+                status = await asyncio.get_event_loop().run_in_executor(
+                    None, get_websocket_status
+                )
+                
+                if status.get("connected", False):
+                    logging.info(f"✅ WebSocket successfully restarted with {status.get('symbols_count', 0)} coins")
+                    if attempt > 0:
+                        logging.info("✅ Bağlantı başarıyla yeniden kuruldu!")
+                    return True
+                else:
+                    # Connection status uncertain - this might still be ok
+                    if attempt < max_retries:
+                        logging.warning(f"⚠️ WebSocket connection status uncertain, retry in {retry_delay} seconds...")
+                        logging.info("📢 Bağlantı kurulumu devam ediyor, birazdan tekrar denenecek...")
+                        await asyncio.sleep(retry_delay)
+                        continue
+                    else:
+                        logging.warning("⚠️ WebSocket restart completed but connection status uncertain (final attempt)")
+                        return True
+                    
+            except asyncio.TimeoutError:
+                if attempt < max_retries:
+                    logging.warning(f"⏰ WebSocket restart timed out, retry in {retry_delay} seconds...")
+                    logging.info("📢 Bağlantı zaman aşımına uğradı, birazdan tekrar denenecek...")
+                    await asyncio.sleep(retry_delay)
+                    continue
+                else:
+                    logging.warning("⚠️ WebSocket restart timed out (final attempt)")
+                    return True
+                    
+            except Exception as e:
+                if attempt < max_retries:
+                    logging.error(f"❌ Error in WebSocket restart (attempt {attempt + 1}): {e}")
+                    logging.info(f"📢 Bağlantı hatası oluştu, {retry_delay} saniye sonra tekrar denenecek...")
+                    await asyncio.sleep(retry_delay)
+                    continue
+                else:
+                    logging.error(f"❌ Final error in async WebSocket restart: {e}")
+                    logging.error("📢 Bağlantı kurulamadı, lütfen daha sonra tekrar deneyin.")
+                    return False
+        
+        return False
+    
+    def run_async_restart():
+        """Run the async restart in a separate thread"""
+        try:
+            # Create new event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            return loop.run_until_complete(async_restart_websocket())
+        except Exception as e:
+            logging.error(f"❌ Error running async restart: {e}")
+            return False
+        finally:
+            loop.close()
+    
+    # Execute async restart in background thread to avoid blocking
+    try:
+        # Run in separate thread to avoid blocking the main thread
+        restart_thread = threading.Thread(target=run_async_restart, daemon=True)
+        restart_thread.start()
+        
+        # Don't wait for completion - let it run in background
+        logging.info("🚀 WebSocket restart initiated in background")
+        return True
+        
+    except Exception as e:
+        logging.error(f"❌ Error starting WebSocket restart thread: {e}")
+        return False
+
 # Logging configuration (if not already set in main app)
 logging.basicConfig(
     level=logging.INFO,
@@ -49,14 +181,23 @@ def set_preference(key: str, new_value: str) -> str:
                 logging.info(f"Preference {key} is already set to {new_value}, no change needed")
                 return f"{key} preference is already set to {new_value}"
             logging.info(f"Updating preference {key} from '{current_value}' to '{new_value}'")
-            new_lines.append(f"{key} = %{new_value}\n")
+            
+            # Sadece risk ve volatilite tercihlerine % ekle
+            if key in ['soft_risk', 'hard_risk', 'accepted_price_volatility']:
+                new_lines.append(f"{key} = %{new_value}\n")
+            else:
+                new_lines.append(f"{key} = {new_value}\n")
             updated = True
         else:
             new_lines.append(line)
 
     if not updated:
         logging.info(f"Adding new preference: {key} = {new_value}")
-        new_lines.append(f"{key} = %{new_value}\n")
+        # Sadece risk ve volatilite tercihlerine % ekle
+        if key in ['soft_risk', 'hard_risk', 'accepted_price_volatility']:
+            new_lines.append(f"{key} = %{new_value}\n")
+        else:
+            new_lines.append(f"{key} = {new_value}\n")
         updated = True
 
     try:
@@ -171,4 +312,33 @@ def update_favorite_coin(old_coin: str, new_coin: str) -> str:
         return f"Error writing preferences file: {e}"
     
     if coin_added:
-        return f"✅ {new_coin} added to favorites. Please restart the app to see changes."
+        # Optimized async callback for faster UI updates and WebSocket restart
+        try:
+            import threading
+            import time
+            
+            def optimized_callback_and_restart():
+                # Reduced wait time from 1s to 0.3s for faster response
+                time.sleep(0.3)  
+                
+                # First notify UI about favorites update
+                _notify_favorites_updated()
+                
+                # Then restart WebSocket with new coin settings (now async and non-blocking)
+                logging.info(f"🔄 Triggering optimized WebSocket restart: {old_coin} → {new_coin}")
+                restart_success = restart_websocket_for_coin_change()
+                
+                # Since restart is now async, just log the initiation
+                if restart_success:
+                    logging.info(f"🚀 WebSocket restart initiated for coin: {new_coin}")
+                else:
+                    logging.error(f"❌ WebSocket restart initiation failed for coin: {new_coin}")
+            
+            # Run optimized callback in daemon thread
+            callback_thread = threading.Thread(target=optimized_callback_and_restart, daemon=True)
+            callback_thread.start()
+            
+        except Exception as e:
+            logging.warning(f"Could not initiate optimized UI update: {e}")
+        
+        return f"✅ {new_coin} added to favorites and WebSocket restarted."

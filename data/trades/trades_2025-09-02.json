@@ -614,5 +614,61 @@
     },
     "recorded_at": "2025-09-02T16:17:50.632931",
     "id": "20250902_161750_SOLUSDT"
+  },
+  {
+    "timestamp": 1756833423911,
+    "symbol": "DOGEUSDT",
+    "side": "SELL",
+    "type": "40%_Sell",
+    "quantity": 16333.0,
+    "price": 0.21229,
+    "total_cost": 3467.33257,
+    "wallet_before": 40833.0,
+    "wallet_after": 24500.0,
+    "order_id": 8626276,
+    "order_type": "MARKET",
+    "recorded_at": "2025-09-02T20:17:03.616699",
+    "id": "20250902_201703_DOGEUSDT"
+  },
+  {
+    "timestamp": "2025-09-02T20:17:03.887465",
+    "symbol": "DOGEUSDT",
+    "side": "SELL",
+    "type": "Hard_Sell",
+    "quantity": 16333.0,
+    "price": 0.21221,
+    "total_cost": 3466.02593,
+    "wallet_before": 28978.7147611,
+    "wallet_after": 32444.7406911,
+    "order_id": 8626276,
+    "binance_data": {
+      "symbol": "DOGEUSDT",
+      "orderId": 8626276,
+      "orderListId": -1,
+      "clientOrderId": "hI4YorJhhKZc4xeobbrAGl",
+      "transactTime": 1756833423911,
+      "price": "0.00000000",
+      "origQty": "16333.00000000",
+      "executedQty": "16333.00000000",
+      "origQuoteOrderQty": "0.00000000",
+      "cummulativeQuoteQty": "3466.02593000",
+      "status": "FILLED",
+      "timeInForce": "GTC",
+      "type": "MARKET",
+      "side": "SELL",
+      "workingTime": 1756833423911,
+      "fills": [
+        {
+          "price": "0.21221000",
+          "qty": "16333.00000000",
+          "commission": "0.00000000",
+          "commissionAsset": "USDT",
+          "tradeId": 1492852
+        }
+      ],
+      "selfTradePreventionMode": "EXPIRE_MAKER"
+    },
+    "recorded_at": "2025-09-02T20:17:03.887465",
+    "id": "20250902_201703_DOGEUSDT"
   }
 ]
