@@ -21,6 +21,6 @@ accepted_price_volatility = %3
 # dynamic_coin = SOL
 # Please write only coin symbol with big letters
 
-favorite_coins = LTC, SOL, BTC, ETH, DOGE
+favorite_coins = SOL, BTC, ETH, DOGE
 dynamic_coin = ADA
 chart_interval = 1
