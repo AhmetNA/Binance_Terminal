@@ -3,7 +3,7 @@ Wallet Panel Component.
 Manages the wallet display and settings button.
 """
 
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QPushButton, QLabel
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QPushButton, QLabel, QHBoxLayout
 from PySide6.QtCore import Qt, Signal
 
 from .base_component import BaseComponent
@@ -51,7 +51,7 @@ class WalletPanel(BaseComponent):
             self.layout.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
             
             # Create UI elements
-            self._create_settings_button()
+            self._create_buttons_layout()
             self._create_wallet_label()
             
             # Set the main layout
@@ -62,6 +62,29 @@ class WalletPanel(BaseComponent):
             
         except Exception as e:
             self.handle_error(e, "Error setting up Wallet Panel UI")
+    
+    def _create_buttons_layout(self):
+        """Create the horizontal layout for settings button."""
+        try:
+            # Create horizontal layout for buttons
+            buttons_layout = QHBoxLayout()
+            buttons_layout.setSpacing(5)
+            
+            # Create settings button
+            self.settings_button = QPushButton("Settings")
+            self.settings_button.setFixedSize(
+                PanelSizes.SETTINGS_BUTTON_WIDTH,
+                PanelSizes.SETTINGS_BUTTON_HEIGHT
+            )
+            self.settings_button.setStyleSheet(SETTINGS_BUTTON_STYLE)
+            self.settings_button.clicked.connect(self._handle_settings_click)
+            buttons_layout.addWidget(self.settings_button)
+            
+            # Add buttons layout to main layout
+            self.layout.addLayout(buttons_layout)
+            
+        except Exception as e:
+            self.handle_error(e, "Error creating buttons layout")
     
     def _create_settings_button(self):
         """Create the settings button."""

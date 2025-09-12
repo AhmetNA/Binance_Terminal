@@ -11,15 +11,20 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import math utilities
-try:
-    from .math_utils import round_to_step_size
-except ImportError:
-    from math_utils import round_to_step_size
+from .math_utils import round_to_step_size
 
 try:
     from services.client_service import prepare_client
 except ImportError:
-    from ..services.client_service import prepare_client
+    try:
+        from ..services.client_service import prepare_client
+    except ImportError:
+        try:
+            from src.services.client_service import prepare_client
+        except ImportError:
+            # Fallback - define a dummy function
+            def prepare_client():
+                return None
 
 
 def validate_trading_symbol(client, symbol):
@@ -102,6 +107,39 @@ def round_quantity(quantity, step_size):
     return round_to_step_size(quantity, step_size)
 
 
+def round_price_to_precision(price, symbol_info):
+    """Fiyatı Binance'in sembol için gereken precision'a göre yuvarla"""
+    try:
+        # PRICE_FILTER'ı bul
+        price_filter = symbol_info['filters'].get('PRICE_FILTER')
+        if price_filter:
+            tick_size = float(price_filter['tickSize'])
+            
+            # tick_size'ın decimal sayısını bul
+            tick_str = f"{tick_size:.10f}".rstrip('0')
+            if '.' in tick_str:
+                decimals = len(tick_str.split('.')[1])
+            else:
+                decimals = 0
+            
+            # Fiyatı tick size'a göre yuvarla
+            factor = 1 / tick_size
+            rounded_price = round(price * factor) / factor
+            
+            # Decimal precision'ı ayarla
+            rounded_price = round(rounded_price, decimals)
+            
+            logging.debug(f"Rounded price {price} to {rounded_price} (tick: {tick_size})")
+            return rounded_price
+        else:
+            logging.warning(f"PRICE_FILTER not found, using 2 decimal places")
+            return round(price, 2)
+            
+    except Exception as e:
+        logging.error(f"Error rounding price {price}: {e}")
+        return round(price, 2)
+
+
 def calculate_buy_quantity(usdt_amount, price, symbol_info):
     """Alım için quantity hesapla"""
     try:
@@ -157,27 +195,7 @@ def calculate_sell_quantity(asset_amount, symbol_info):
         raise
 
 
-def get_market_data(client, symbol):
-    """24 saatlik market verilerini al"""
-    try:
-        ticker_24hr = client.get_ticker(symbol=symbol)
-        
-        market_data = {
-            'symbol': symbol,
-            'price': float(ticker_24hr['lastPrice']),
-            'price_change': float(ticker_24hr['priceChange']),
-            'price_change_percent': float(ticker_24hr['priceChangePercent']),
-            'volume': float(ticker_24hr['volume']),
-            'high_24h': float(ticker_24hr['highPrice']),
-            'low_24h': float(ticker_24hr['lowPrice'])
-        }
-        
-        logging.debug(f"Market data retrieved for {symbol}")
-        return market_data
-        
-    except Exception as e:
-        logging.error(f"Error getting market data for {symbol}: {e}")
-        raise
+
 
 
 if __name__ == "__main__":

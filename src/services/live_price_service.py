@@ -24,7 +24,7 @@ import sys
 # Add src to path for core imports (optimized)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.config import pending_subscriptions, USDT, TICKER_SUFFIX, RECONNECT_DELAY, COINS_KEY, DYNAMIC_COIN_KEY
+from core.globals import pending_subscriptions, USDT, TICKER_SUFFIX, RECONNECT_DELAY, COINS_KEY, DYNAMIC_COIN_KEY
 from core.paths import MAIN_LOG_FILE
 
 # Import utility functions
@@ -64,31 +64,81 @@ ws_app = None
 connection_active = False
 websocket_starting = False
 current_dynamic_coin_subscription = None
+last_logged_subscription = None  # Track last logged subscription to avoid duplicates
+
+# Price update cache to reduce file I/O
+_price_cache = {}
+_cache_lock = threading.Lock()
+_last_save_time = 0
+SAVE_INTERVAL = 2.0  # Save to file every 2 seconds max
 
 # ===== PRICE UPDATE FUNCTIONS =====
 
-def refresh_coin_price(symbol, new_price):
-    """Update favorite coin price in data storage"""
+def _save_cached_prices():
+    """Save cached prices to file - internal function"""
+    global _last_save_time
     try:
-        data = load_fav_coins()
-        for coin in data.get(COINS_KEY, []):
-            if coin['symbol'].lower() == symbol.lower():
-                coin['values']['current'] = new_price
-                break
-        write_favorite_coins_to_json(data)
+        with _cache_lock:
+            if not _price_cache:
+                return
+            
+            data = load_fav_coins()
+            
+            # Update prices from cache
+            for symbol, price in _price_cache.items():
+                # Update regular coins
+                for coin in data.get(COINS_KEY, []):
+                    if coin['symbol'].lower() == symbol.lower():
+                        coin['values']['current'] = price
+                        break
+                
+                # Update dynamic coin if it matches
+                if isinstance(data.get(DYNAMIC_COIN_KEY, []), list) and data[DYNAMIC_COIN_KEY]:
+                    if data[DYNAMIC_COIN_KEY][0]['symbol'].lower() == symbol.lower():
+                        data[DYNAMIC_COIN_KEY][0]['values']['current'] = price
+            
+            write_favorite_coins_to_json(data)
+            _price_cache.clear()
+            _last_save_time = time.time()
+            
+    except Exception as e:
+        logging.exception(f"Error saving cached prices: {e}")
+
+def _refresh_coin_price(symbol, new_price):
+    """Update favorite coin price in cache and periodically save to storage"""
+    try:
+        global _last_save_time
+        current_time = time.time()
+        
+        with _cache_lock:
+            _price_cache[symbol.lower()] = new_price
+        
+        # Save to file if enough time has passed or cache is getting large
+        if (current_time - _last_save_time > SAVE_INTERVAL) or len(_price_cache) > 10:
+            _save_cached_prices()
+            
     except Exception as e:
         logging.exception(f"Error refreshing coin price for {symbol}: {e}")
 
-def refresh_dynamic_coin_price(symbol, new_price):
-    """Update dynamic coin price in data storage"""
+def _refresh_dynamic_coin_price(symbol, new_price):
+    """Update dynamic coin price in cache and periodically save to storage"""
     try:
-        data = load_fav_coins()
-        if isinstance(data.get(DYNAMIC_COIN_KEY, []), list) and data[DYNAMIC_COIN_KEY]:
-            data[DYNAMIC_COIN_KEY][0]['symbol'] = symbol.upper()
-            data[DYNAMIC_COIN_KEY][0]['values']['current'] = new_price
-        write_favorite_coins_to_json(data)
+        global _last_save_time
+        current_time = time.time()
+        
+        with _cache_lock:
+            _price_cache[symbol.lower()] = new_price
+        
+        # Save to file if enough time has passed
+        if current_time - _last_save_time > SAVE_INTERVAL:
+            _save_cached_prices()
+            
     except Exception as e:
         logging.exception(f"Error refreshing dynamic coin price for {symbol}: {e}")
+
+def force_save_prices():
+    """Force save all cached prices to file"""
+    _save_cached_prices()
 
 def set_dynamic_coin_symbol(user_input):
     """
@@ -238,12 +288,12 @@ def on_message(ws_instance, message):
             # Update favorite coins
             fav_coins_data = load_fav_coins()
             if symbol.lower() in [coin['symbol'].lower() for coin in fav_coins_data.get(COINS_KEY, [])]:
-                refresh_coin_price(symbol, new_price)
+                _refresh_coin_price(symbol, new_price)
 
             # Update dynamic coin
             dynamic_coin = fav_coins_data.get(DYNAMIC_COIN_KEY, [])
             if isinstance(dynamic_coin, list) and dynamic_coin and symbol.lower() == dynamic_coin[0]['symbol'].lower():
-                refresh_dynamic_coin_price(symbol, new_price)
+                _refresh_dynamic_coin_price(symbol, new_price)
         elif 'result' in data and 'id' in data:
             # This is a subscription confirmation message, ignore it
             logging.debug(f"WebSocket subscription confirmation: {data}")
@@ -258,7 +308,7 @@ def on_open(ws_instance):
     @param ws_instance WebSocket object.
     @return None
     """
-    global SYMBOLS, current_dynamic_coin_subscription, connection_active
+    global SYMBOLS, current_dynamic_coin_subscription, connection_active, last_logged_subscription
     
     # Check if this connection should be active
     if not connection_active and not websocket_starting:
@@ -280,7 +330,12 @@ def on_open(ws_instance):
             "id": next(id_gen)
         }
         ws_instance.send(json.dumps(initial))
-        logging.info(f"✅ Subscribed to {len(SYMBOLS)} favorite coins: {SYMBOLS}")
+        
+        # Only log if subscriptions changed
+        current_subscription_key = frozenset(SYMBOLS)
+        if last_logged_subscription != current_subscription_key:
+            logging.info(f"✅ Subscribed to {len(SYMBOLS)} favorite coins: {SYMBOLS}")
+            last_logged_subscription = current_subscription_key
     else:
         logging.warning("No favorite coins symbols found to subscribe to")
 
@@ -629,8 +684,10 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         logging.info("Price service stopped by user")
+        force_save_prices()  # Save any cached prices before exit
     except Exception as e:
         logging.error(f"Error in main: {e}")
+        force_save_prices()  # Save any cached prices before exit
 
 if __name__ == "__main__":
     main()

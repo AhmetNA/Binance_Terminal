@@ -1,8 +1,19 @@
 import os
 import sys
 
-# Add src to path to allow imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add src to path to allow imports - ensure it's at the beginning to override any other paths
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+# Clear any cached preferences to ensure we use the correct ones
+try:
+    import config.preferences_manager as pm
+    pm._CACHED_PREFERENCES = None
+    pm._CACHED_ORDER_TYPE = None
+    pm._CACHED_RISK_TYPE = None
+except ImportError:
+    pass  # Module not yet available
 
 from core.logger import setup_logging, get_main_logger
 from ui.main_window import initialize_gui
@@ -13,6 +24,17 @@ def main():
     setup_logging()
     logger = get_main_logger()
     logger.info("Starting the application...")
+    
+    # Verify preferences are loaded correctly
+    try:
+        from config.preferences_manager import get_buy_preferences
+        from core.paths import PREFERENCES_FILE
+        preferences = get_buy_preferences()
+        logger.info(f"Loaded preferences: {preferences}")
+        logger.info(f"Preferences file: {PREFERENCES_FILE}")
+        logger.info(f"File exists: {os.path.exists(PREFERENCES_FILE)}")
+    except Exception as e:
+        logger.error(f"Error loading preferences: {e}")
     
     try:
         # PySide6 import kontrolü
@@ -68,6 +90,14 @@ def main():
                 loop.close()
             except Exception:
                 pass
+        
+        # Save any cached price data before exit
+        try:
+            from services.live_price_service import force_save_prices
+            force_save_prices()
+            logger.debug("Saved cached price data before exit")
+        except Exception as e:
+            logger.warning(f"Could not save cached prices: {e}")
 
 if __name__ == "__main__":
     try:

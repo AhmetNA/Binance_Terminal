@@ -72,19 +72,7 @@ def get_cached_client_info():
     }
 
 
-def get_client():
-    return prepare_client()
 
-
-def is_client_cached():
-    global _CACHED_CLIENT
-    return _CACHED_CLIENT is not None
-
-
-def clear_client_cache():
-    global _CACHED_CLIENT
-    _CACHED_CLIENT = None
-    logging.info("🧹 Client cache cleared")
 
 
 if __name__ == "__main__":
@@ -100,10 +88,7 @@ if __name__ == "__main__":
     functions = [
         'prepare_client',
         'force_client_reload', 
-        'get_cached_client_info',
-        'get_client',
-        'is_client_cached',
-        'clear_client_cache'
+        'get_cached_client_info'
     ]
     for func in functions:
         print(f"  ✅ {func}")

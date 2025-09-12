@@ -91,9 +91,6 @@ class DynamicCoinPanel(BaseComponent):
             self.coin_button.clicked.connect(lambda: self._handle_coin_details(self.coin_button))
             self.layout.addWidget(self.coin_button)
             
-            # Add extra spacing before sell buttons
-            self.layout.addSpacing(LayoutSpacing.DYN_COIN_EXTRA_SPACING)
-            
             # Soft Sell button
             btn_soft_sell = self._create_order_button("Soft Sell", DYN_SOFT_SELL_STYLE, "Soft_Sell")
             self.layout.addWidget(btn_soft_sell)

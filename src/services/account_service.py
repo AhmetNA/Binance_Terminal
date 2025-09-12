@@ -83,33 +83,7 @@ def get_amountOf_asset(client, SYMBOL):
         raise
 
 
-def get_all_balances(client=None, min_balance=0.0):
-    if client is None:
-        client = prepare_client()
-    
-    try:
-        account_info = get_account_data(client)
-        balances = {}
-        
-        for balance in account_info['balances']:
-            free_balance = float(balance['free'])
-            locked_balance = float(balance['locked'])
-            total_balance = free_balance + locked_balance
-            
-            if total_balance >= min_balance:
-                balances[balance['asset']] = {
-                    'free': free_balance,
-                    'locked': locked_balance,
-                    'total': total_balance
-                }
-        
-        logging.info(f"Retrieved {len(balances)} balances above {min_balance}")
-        return balances
-        
-    except Exception as e:
-        error_msg = f"Error getting all balances: {e}"
-        logging.error(error_msg)
-        raise
+
 
 
 if __name__ == "__main__":
@@ -121,10 +95,6 @@ if __name__ == "__main__":
         # Test USDT balance
         usdt_balance = retrieve_usdt_balance()
         print(f"💰 USDT Balance: {usdt_balance}")
-        
-        # Test all balances
-        balances = get_all_balances(min_balance=1.0)
-        print(f"📊 Non-zero balances: {len(balances)}")
         
         print("\n✅ Account service test completed successfully!")
         

@@ -76,28 +76,3 @@ def get_logger(name):
 def get_main_logger():
     """Ana uygulama logger'ı"""
     return get_logger('binance_terminal.main')
-
-
-def get_ui_logger():
-    """UI bileşenleri logger'ı"""
-    return get_logger('binance_terminal.ui')
-
-
-def get_api_logger():
-    """API işlemleri logger'ı"""
-    return get_logger('binance_terminal.api')
-
-
-def get_service_logger():
-    """Servis katmanı logger'ı"""
-    return get_logger('binance_terminal.services')
-
-
-def get_data_logger():
-    """Veri işlemleri logger'ı"""
-    return get_logger('binance_terminal.data')
-
-
-def get_websocket_logger():
-    """WebSocket işlemleri logger'ı"""
-    return get_logger('binance_terminal.websocket')

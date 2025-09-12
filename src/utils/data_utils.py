@@ -7,13 +7,43 @@ import json
 import os
 import logging
 import sys
+import threading
+import time
 
 # Add src to path for core imports (optimized)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.config import PREFERENCES_FILE, FAV_COINS_FILE, USDT, TICKER_SUFFIX, COINS_KEY, DYNAMIC_COIN_KEY
-from core.paths import SETTINGS_DIR
-from utils.symbol_utils import format_binance_ticker_symbols
+# Add src to path for core imports (optimized)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+try:
+    from core.globals import PREFERENCES_FILE, FAV_COINS_FILE, USDT, TICKER_SUFFIX, COINS_KEY, DYNAMIC_COIN_KEY
+    from core.paths import SETTINGS_DIR
+except ImportError:
+    # Fallback if running from different context
+    try:
+        from src.core.globals import PREFERENCES_FILE, FAV_COINS_FILE, USDT, TICKER_SUFFIX, COINS_KEY, DYNAMIC_COIN_KEY
+        from src.core.paths import SETTINGS_DIR
+    except ImportError:
+        # Define locally if core modules are not available
+        import os
+        PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        PREFERENCES_FILE = os.path.join(PROJECT_ROOT, "config", "Preferences.txt")
+        FAV_COINS_FILE = os.path.join(PROJECT_ROOT, "config", "fav_coins.json")
+        SETTINGS_DIR = os.path.join(PROJECT_ROOT, "config")
+        USDT = "USDT"
+        TICKER_SUFFIX = "@ticker"
+        COINS_KEY = "coins"
+        DYNAMIC_COIN_KEY = "dynamic_coin"
+
+try:
+    from utils.symbol_utils import format_binance_ticker_symbols
+except ImportError:
+    # This will be handled when symbol_utils is properly imported
+    pass
+
+# File operation lock to prevent race conditions
+_file_lock = threading.Lock()
 
 
 def ensure_config_directory():
@@ -27,24 +57,24 @@ def ensure_config_directory():
 
 
 def load_fav_coins():
-    """Load favorite coins from JSON file"""
-    try:
-        ensure_config_directory()
-        
-        if not os.path.exists(FAV_COINS_FILE):
-            logging.debug(f"Favorite coins file not found, creating: {FAV_COINS_FILE}")
-            default_data = create_default_fav_coins_data()
-            write_favorite_coins_to_json(default_data)
-            return default_data
-        
-        with open(FAV_COINS_FILE, 'r', encoding='utf-8') as file:
-            content = file.read().strip()
+    """Load favorite coins from JSON file with thread safety"""
+    with _file_lock:
+        try:
+            ensure_config_directory()
             
-            if not content:
-                logging.warning(f"Favorite coins file is empty, restoring with default structure")
-                # Don't overwrite, try to restore from backup first
+            if not os.path.exists(FAV_COINS_FILE):
+                logging.debug(f"Favorite coins file not found, creating: {FAV_COINS_FILE}")
+                default_data = create_default_fav_coins_data()
+                write_favorite_coins_to_json(default_data)
+                return default_data
+            
+            # Check file size first to avoid reading empty files
+            file_size = os.path.getsize(FAV_COINS_FILE)
+            if file_size == 0:
+                logging.warning(f"Favorite coins file is empty (size: 0), restoring with default structure")
+                # Try to restore from backup first
                 backup_file = f"{FAV_COINS_FILE}.backup"
-                if os.path.exists(backup_file):
+                if os.path.exists(backup_file) and os.path.getsize(backup_file) > 0:
                     try:
                         with open(backup_file, 'r', encoding='utf-8') as backup:
                             backup_content = backup.read().strip()
@@ -61,38 +91,75 @@ def load_fav_coins():
                 write_favorite_coins_to_json(default_data)
                 return default_data
             
-            data = json.loads(content)
-            
-            # Validate and fix structure if needed
-            if COINS_KEY not in data:
-                data[COINS_KEY] = []
-            if DYNAMIC_COIN_KEY not in data:
-                data[DYNAMIC_COIN_KEY] = []
-                
-            return data
-            
-    except json.JSONDecodeError as e:
-        logging.error(f"Invalid JSON in favorite coins file: {e}")
-        
-        # Try to restore from backup before recreating
-        backup_file = f"{FAV_COINS_FILE}.backup"
-        if os.path.exists(backup_file):
-            try:
-                with open(backup_file, 'r', encoding='utf-8') as backup:
-                    backup_data = json.loads(backup.read())
-                    write_favorite_coins_to_json(backup_data)
-                    logging.debug("Restored corrupted fav_coins.json from backup")
-                    return backup_data
-            except Exception as e:
-                logging.warning(f"Could not restore from backup: {e}")
-        
-        logging.debug("Creating new favorite coins file with default values")
-        default_data = create_default_fav_coins_data()
-        write_favorite_coins_to_json(default_data)
-        return default_data
-    except Exception as e:
-        logging.exception(f"Error loading favorite coins: {e}")
-        return create_default_fav_coins_data()
+            # Read file with retry mechanism
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    with open(FAV_COINS_FILE, 'r', encoding='utf-8') as file:
+                        content = file.read().strip()
+                        
+                        if not content:
+                            if attempt < max_retries - 1:
+                                time.sleep(0.1)  # Wait 100ms before retry
+                                continue
+                            
+                            logging.warning(f"Favorite coins file is empty after {max_retries} attempts, restoring with default structure")
+                            # Try to restore from backup first
+                            backup_file = f"{FAV_COINS_FILE}.backup"
+                            if os.path.exists(backup_file):
+                                try:
+                                    with open(backup_file, 'r', encoding='utf-8') as backup:
+                                        backup_content = backup.read().strip()
+                                        if backup_content:
+                                            backup_data = json.loads(backup_content)
+                                            write_favorite_coins_to_json(backup_data)
+                                            logging.debug("Restored fav_coins.json from backup")
+                                            return backup_data
+                                except Exception as e:
+                                    logging.warning(f"Could not restore from backup: {e}")
+                            
+                            # If backup restore fails, create default
+                            default_data = create_default_fav_coins_data()
+                            write_favorite_coins_to_json(default_data)
+                            return default_data
+                        
+                        data = json.loads(content)
+                        
+                        # Validate and fix structure if needed
+                        if COINS_KEY not in data:
+                            data[COINS_KEY] = []
+                        if DYNAMIC_COIN_KEY not in data:
+                            data[DYNAMIC_COIN_KEY] = []
+                            
+                        return data
+                        
+                except json.JSONDecodeError as e:
+                    if attempt < max_retries - 1:
+                        time.sleep(0.1)  # Wait 100ms before retry
+                        continue
+                    
+                    logging.error(f"Invalid JSON in favorite coins file after {max_retries} attempts: {e}")
+                    
+                    # Try to restore from backup before recreating
+                    backup_file = f"{FAV_COINS_FILE}.backup"
+                    if os.path.exists(backup_file):
+                        try:
+                            with open(backup_file, 'r', encoding='utf-8') as backup:
+                                backup_data = json.loads(backup.read())
+                                write_favorite_coins_to_json(backup_data)
+                                logging.debug("Restored corrupted fav_coins.json from backup")
+                                return backup_data
+                        except Exception as e:
+                            logging.warning(f"Could not restore from backup: {e}")
+                    
+                    logging.debug("Creating new favorite coins file with default values")
+                    default_data = create_default_fav_coins_data()
+                    write_favorite_coins_to_json(default_data)
+                    return default_data
+                    
+        except Exception as e:
+            logging.exception(f"Error loading favorite coins: {e}")
+            return create_default_fav_coins_data()
 
 
 def create_default_fav_coins_data():
@@ -136,70 +203,92 @@ def create_default_fav_coins_data():
 
 
 def write_favorite_coins_to_json(data):
-    """Save favorite coins data to JSON file with backup and validation"""
-    try:
-        ensure_config_directory()
-        
-        # Validate data structure
-        if not isinstance(data, dict):
-            raise ValueError("Data must be a dictionary")
-        if COINS_KEY not in data:
-            data[COINS_KEY] = []
-        if DYNAMIC_COIN_KEY not in data:
-            data[DYNAMIC_COIN_KEY] = []
-        
-        # Create backup if file exists and has content
-        if os.path.exists(FAV_COINS_FILE):
-            backup_file = f"{FAV_COINS_FILE}.backup"
+    """Save favorite coins data to JSON file with backup and validation and thread safety"""
+    with _file_lock:
+        try:
+            ensure_config_directory()
+            
+            # Validate data structure
+            if not isinstance(data, dict):
+                raise ValueError("Data must be a dictionary")
+            if COINS_KEY not in data:
+                data[COINS_KEY] = []
+            if DYNAMIC_COIN_KEY not in data:
+                data[DYNAMIC_COIN_KEY] = []
+            
+            # Create backup if file exists and has content
+            if os.path.exists(FAV_COINS_FILE):
+                backup_file = f"{FAV_COINS_FILE}.backup"
+                try:
+                    file_size = os.path.getsize(FAV_COINS_FILE)
+                    if file_size > 0:  # Only backup if file has content
+                        with open(FAV_COINS_FILE, 'r', encoding='utf-8') as source:
+                            content = source.read().strip()
+                            if content:  # Double check content is not empty
+                                with open(backup_file, 'w', encoding='utf-8') as backup:
+                                    backup.write(content)
+                                logging.debug("Created backup of existing fav_coins.json")
+                except Exception as e:
+                    logging.warning(f"Could not create backup: {e}")
+            
+            # Validate that we're not writing empty data when existing data exists
+            if os.path.exists(FAV_COINS_FILE):
+                try:
+                    file_size = os.path.getsize(FAV_COINS_FILE)
+                    if file_size > 0:
+                        with open(FAV_COINS_FILE, 'r', encoding='utf-8') as existing_file:
+                            existing_content = existing_file.read().strip()
+                            if existing_content:
+                                existing_data = json.loads(existing_content)
+                                # If we're trying to write empty data but existing data has content, merge
+                                if (not data.get(COINS_KEY) and existing_data.get(COINS_KEY)) or \
+                                   (not data.get(DYNAMIC_COIN_KEY) and existing_data.get(DYNAMIC_COIN_KEY)):
+                                    logging.warning("Preventing overwrite of existing data with empty data")
+                                    # Merge - keep existing data structure but update symbols/names
+                                    if not data.get(COINS_KEY) and existing_data.get(COINS_KEY):
+                                        data[COINS_KEY] = existing_data[COINS_KEY]
+                                    if not data.get(DYNAMIC_COIN_KEY) and existing_data.get(DYNAMIC_COIN_KEY):
+                                        data[DYNAMIC_COIN_KEY] = existing_data[DYNAMIC_COIN_KEY]
+                except (json.JSONDecodeError, Exception) as e:
+                    logging.warning(f"Could not read existing file for comparison: {e}")
+            
+            # Write the new data with proper encoding using atomic write
+            temp_file = f"{FAV_COINS_FILE}.tmp"
             try:
-                with open(FAV_COINS_FILE, 'r', encoding='utf-8') as source:
-                    content = source.read().strip()
-                    if content:  # Only backup if file has content
-                        with open(backup_file, 'w', encoding='utf-8') as backup:
-                            backup.write(content)
-                        logging.debug("Created backup of existing fav_coins.json")
+                with open(temp_file, 'w', encoding='utf-8') as file:
+                    json.dump(data, file, indent=4, ensure_ascii=False)
+                
+                # Atomic move operation - reduces the window where file might appear empty
+                if os.path.exists(FAV_COINS_FILE):
+                    os.replace(temp_file, FAV_COINS_FILE)
+                else:
+                    os.rename(temp_file, FAV_COINS_FILE)
+                
+                logging.debug(f"Successfully wrote favorite coins data to {FAV_COINS_FILE}")
+                
             except Exception as e:
-                logging.warning(f"Could not create backup: {e}")
-        
-        # Validate that we're not writing empty data when existing data exists
-        if os.path.exists(FAV_COINS_FILE):
-            try:
-                with open(FAV_COINS_FILE, 'r', encoding='utf-8') as existing_file:
-                    existing_content = existing_file.read().strip()
-                    if existing_content:
-                        existing_data = json.loads(existing_content)
-                        # If we're trying to write empty data but existing data has content, merge
-                        if (not data.get(COINS_KEY) and existing_data.get(COINS_KEY)) or \
-                           (not data.get(DYNAMIC_COIN_KEY) and existing_data.get(DYNAMIC_COIN_KEY)):
-                            logging.warning("Preventing overwrite of existing data with empty data")
-                            # Merge - keep existing data structure but update symbols/names
-                            if not data.get(COINS_KEY) and existing_data.get(COINS_KEY):
-                                data[COINS_KEY] = existing_data[COINS_KEY]
-                            if not data.get(DYNAMIC_COIN_KEY) and existing_data.get(DYNAMIC_COIN_KEY):
-                                data[DYNAMIC_COIN_KEY] = existing_data[DYNAMIC_COIN_KEY]
-            except (json.JSONDecodeError, Exception) as e:
-                logging.warning(f"Could not read existing file for comparison: {e}")
-        
-        # Write the new data with proper encoding
-        with open(FAV_COINS_FILE, 'w', encoding='utf-8') as file:
-            json.dump(data, file, indent=4, ensure_ascii=False)
-        
-        logging.debug(f"Successfully wrote favorite coins data to {FAV_COINS_FILE}")
-        
-    except Exception as e:
-        logging.exception(f"Error writing favorite coins: {e}")
-        # Try to restore from backup if write failed
-        backup_file = f"{FAV_COINS_FILE}.backup"
-        if os.path.exists(backup_file):
-            try:
-                with open(backup_file, 'r', encoding='utf-8') as backup:
-                    backup_content = backup.read()
-                    if backup_content.strip():  # Only restore if backup has content
-                        with open(FAV_COINS_FILE, 'w', encoding='utf-8') as target:
-                            target.write(backup_content)
-                        logging.debug("Restored favorite coins file from backup")
-            except Exception as restore_error:
-                logging.error(f"Could not restore from backup: {restore_error}")
+                # Clean up temp file if it exists
+                if os.path.exists(temp_file):
+                    try:
+                        os.remove(temp_file)
+                    except:
+                        pass
+                raise e
+            
+        except Exception as e:
+            logging.exception(f"Error writing favorite coins: {e}")
+            # Try to restore from backup if write failed
+            backup_file = f"{FAV_COINS_FILE}.backup"
+            if os.path.exists(backup_file):
+                try:
+                    with open(backup_file, 'r', encoding='utf-8') as backup:
+                        backup_content = backup.read()
+                        if backup_content.strip():  # Only restore if backup has content
+                            with open(FAV_COINS_FILE, 'w', encoding='utf-8') as target:
+                                target.write(backup_content)
+                            logging.debug("Restored favorite coins file from backup")
+                except Exception as restore_error:
+                    logging.error(f"Could not restore from backup: {restore_error}")
 
 
 def load_user_preferences():
@@ -263,80 +352,7 @@ def load_user_preferences():
         return []
 
 
-def validate_json_structure(data, expected_keys):
-    """Validate JSON data structure"""
-    if not isinstance(data, dict):
-        return False
-    
-    for key in expected_keys:
-        if key not in data:
-            return False
-    
-    return True
 
-
-def safe_json_load(file_path, default_value=None):
-    """Safely load JSON file with error handling"""
-    try:
-        if not os.path.exists(file_path):
-            return default_value
-        
-        with open(file_path, 'r', encoding='utf-8') as file:
-            content = file.read().strip()
-            if not content:
-                return default_value
-            
-            return json.loads(content)
-            
-    except json.JSONDecodeError as e:
-        logging.error(f"Invalid JSON in file {file_path}: {e}")
-        return default_value
-    except Exception as e:
-        logging.error(f"Error loading JSON file {file_path}: {e}")
-        return default_value
-
-
-def safe_json_save(file_path, data, create_backup=True):
-    """Safely save JSON data with backup"""
-    try:
-        # Ensure directory exists
-        directory = os.path.dirname(file_path)
-        if directory and not os.path.exists(directory):
-            os.makedirs(directory)
-        
-        # Create backup if requested and file exists
-        if create_backup and os.path.exists(file_path):
-            backup_file = f"{file_path}.backup"
-            try:
-                with open(file_path, 'r') as source:
-                    with open(backup_file, 'w') as backup:
-                        backup.write(source.read())
-            except Exception as e:
-                logging.warning(f"Could not create backup for {file_path}: {e}")
-        
-        # Write the new data
-        with open(file_path, 'w', encoding='utf-8') as file:
-            json.dump(data, file, indent=4, ensure_ascii=False)
-        
-        logging.debug(f"Successfully saved data to {file_path}")
-        return True
-        
-    except Exception as e:
-        logging.error(f"Error saving JSON to {file_path}: {e}")
-        
-        # Try to restore from backup if write failed
-        if create_backup:
-            backup_file = f"{file_path}.backup"
-            if os.path.exists(backup_file):
-                try:
-                    with open(backup_file, 'r') as backup:
-                        with open(file_path, 'w') as target:
-                            target.write(backup.read())
-                    logging.debug(f"Restored {file_path} from backup")
-                except Exception as restore_error:
-                    logging.error(f"Could not restore {file_path} from backup: {restore_error}")
-        
-        return False
 
 
 if __name__ == "__main__":
@@ -348,24 +364,7 @@ if __name__ == "__main__":
     ensure_config_directory()
     print(f"✅ Config directory ensured")
     
-    # Test JSON loading/saving
-    test_data = {"test": "data", "coins": ["BTC", "ETH"]}
-    test_file = os.path.join(SETTINGS_DIR, "test.json")
-    
-    # Save test data
-    success = safe_json_save(test_file, test_data)
-    print(f"✅ JSON save successful: {success}")
-    
-    # Load test data
-    loaded_data = safe_json_load(test_file, {})
-    print(f"✅ JSON load successful: {loaded_data == test_data}")
-    
-    # Clean up test file
-    try:
-        os.remove(test_file)
-        if os.path.exists(f"{test_file}.backup"):
-            os.remove(f"{test_file}.backup")
-    except:
-        pass
+    # Test JSON loading/saving - removed functions
+    print(f"✅ JSON utilities functionality removed")
     
     print("\n✅ Data utils test completed successfully!")

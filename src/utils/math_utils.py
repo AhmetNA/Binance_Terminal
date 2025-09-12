@@ -67,20 +67,7 @@ def calculate_percentage_change(old_value: float, new_value: float) -> float:
         return 0.0
 
 
-def clamp_value(value: float, min_value: float, max_value: float) -> float:
-    """Clamp value between min and max boundaries"""
-    return max(min_value, min(value, max_value))
 
-
-def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:
-    """Safely divide numbers with default fallback"""
-    try:
-        if denominator == 0:
-            return default
-        return numerator / denominator
-    except Exception as e:
-        logging.error(f"Error in safe division: {e}")
-        return default
 
 
 def format_currency(amount: float, currency: str = "USDT", decimals: int = 2) -> str:
@@ -102,59 +89,7 @@ def format_percentage(percentage: float, decimals: int = 2) -> str:
         return f"{percentage}%"
 
 
-def calculate_compound_return(initial_value: float, final_value: float, periods: int) -> float:
-    """Calculate compound annual growth rate"""
-    try:
-        if initial_value <= 0 or periods <= 0:
-            return 0.0
-        return (pow(final_value / initial_value, 1 / periods) - 1) * 100
-    except Exception as e:
-        logging.error(f"Error calculating compound return: {e}")
-        return 0.0
 
-
-def calculate_moving_average(values: List[float], window: int) -> List[float]:
-    """Calculate simple moving average"""
-    try:
-        if len(values) < window:
-            return values
-        
-        moving_averages = []
-        for i in range(len(values) - window + 1):
-            window_average = sum(values[i:i + window]) / window
-            moving_averages.append(window_average)
-        
-        return moving_averages
-    except Exception as e:
-        logging.error(f"Error calculating moving average: {e}")
-        return values
-
-
-def calculate_volatility(prices: List[float]) -> float:
-    """Calculate price volatility (standard deviation)"""
-    try:
-        if len(prices) < 2:
-            return 0.0
-        
-        mean_price = sum(prices) / len(prices)
-        variance = sum((price - mean_price) ** 2 for price in prices) / len(prices)
-        return math.sqrt(variance)
-    except Exception as e:
-        logging.error(f"Error calculating volatility: {e}")
-        return 0.0
-
-
-def normalize_to_range(value: float, min_val: float, max_val: float, new_min: float = 0, new_max: float = 1) -> float:
-    """Normalize value from one range to another"""
-    try:
-        if max_val == min_val:
-            return new_min
-        
-        normalized = (value - min_val) / (max_val - min_val)
-        return new_min + normalized * (new_max - new_min)
-    except Exception as e:
-        logging.error(f"Error normalizing value: {e}")
-        return value
 
 
 if __name__ == "__main__":
@@ -180,9 +115,7 @@ if __name__ == "__main__":
     formatted = format_currency(1234.56789, "USDT", 2)
     print(f"💰 Formatted currency: {formatted}")
     
-    # Test moving average
-    prices = [100, 110, 105, 115, 120, 125]
-    ma = calculate_moving_average(prices, 3)
-    print(f"📈 Moving average (3-period): {[round(x, 2) for x in ma]}")
+    # Test moving average - removed function
+    print(f"📈 Moving average functionality removed")
     
     print("\n✅ Math utils test completed successfully!")

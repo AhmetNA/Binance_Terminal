@@ -13,8 +13,6 @@ class BaseComponent(QWidget):
     
     # Common signals that components can emit
     error_occurred = Signal(str)  # Error message
-    status_updated = Signal(str)  # Status message
-    data_updated = Signal(dict)   # Data update notification
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -42,23 +40,7 @@ class BaseComponent(QWidget):
         """Log a warning message."""
         self.logger.warning(message)
     
-    def emit_status(self, message):
-        """Emit a status update."""
-        self.status_updated.emit(message)
-    
-    def emit_data_update(self, data):
-        """Emit a data update notification."""
-        self.data_updated.emit(data)
-    
     def handle_error(self, error, context=""):
         """Handle errors in a consistent way."""
         error_msg = f"{context}: {str(error)}" if context else str(error)
         self.log_error(error_msg)
-    
-    def safe_operation(self, operation, *args, **kwargs):
-        """Execute an operation safely with error handling."""
-        try:
-            return operation(*args, **kwargs)
-        except Exception as e:
-            self.handle_error(e, f"Error in {operation.__name__}")
-            return None

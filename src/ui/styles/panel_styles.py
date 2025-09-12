@@ -116,7 +116,7 @@ TERMINAL_STYLE = """
         border-radius: 8px;
         padding: 5px;
         font-family: Consolas, monospace;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: bold;
     }
 """
@@ -144,7 +144,7 @@ class PanelSizes:
     COIN_ENTRY_FRAME_WIDTH = 200
     COIN_ENTRY_FRAME_HEIGHT = 120
     
-    TERMINAL_HEIGHT = 150
+    TERMINAL_HEIGHT = 180
     
     SETTINGS_BUTTON_WIDTH = 75
     SETTINGS_BUTTON_HEIGHT = 28

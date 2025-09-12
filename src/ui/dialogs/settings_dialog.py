@@ -6,9 +6,10 @@ Manages the application settings window.
 import logging
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox,
-    QHBoxLayout, QApplication, QGridLayout
+    QHBoxLayout, QApplication, QGridLayout, QComboBox
 )
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QIntValidator, QDoubleValidator
 
 from ..styles.button_styles import SAVE_BUTTON_STYLE
 from ..styles.panel_styles import (
@@ -38,7 +39,7 @@ class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.setFixedSize(350, 550)  # Increased height for dynamic coins section
+        self.setFixedSize(350, 640)  # Increased height for risk type inputs
         self.setStyleSheet(SETTINGS_DIALOG_STYLE)
         
         self.original_prefs = {}
@@ -48,6 +49,9 @@ class SettingsDialog(QDialog):
         self.fav_edits = []
         self.dynamic_edits = []  # Dynamic coin input'ları için
         self.interval_edit = None
+        self.order_type_combo = None  # Order type combo box
+        self.risk_type_combo = None  # Risk type combo box
+        self.risk_edits = {}  # Risk input fields
         
         self.load_preferences()
         self.setup_ui()
@@ -58,11 +62,11 @@ class SettingsDialog(QDialog):
         super().showEvent(event)
         try:
             # Her dialog açıldığında JSON'dan coinleri al ve preferences'ı güncelle
-            logging.info("Settings dialog opened - updating preferences from JSON...")
+            logging.debug("Settings dialog opened - updating preferences from JSON...")
             self._update_preferences_from_json()
             self.load_preferences()
             self.refresh_ui_with_current_data()
-            logging.info("Settings dialog refreshed with current preferences")
+            logging.debug("Settings dialog refreshed with current preferences")
         except Exception as e:
             logging.error(f"Error refreshing settings dialog: {e}")
     
@@ -91,8 +95,8 @@ class SettingsDialog(QDialog):
             coins_str = prefs.get("favorite_coins", "")
             self.original_coins = [c.strip().upper() for c in coins_str.split(",") if c.strip()]
             
-            # Load dynamic coins from fav_coins.json
-            self._load_dynamic_coins()
+            # Load dynamic coins from fav_coins.json - only log during initial load
+            self._load_dynamic_coins(force_log=(not hasattr(self, 'original_dynamic_coins')))
             
         except FileNotFoundError:
             logging.warning(f"Preferences file not found: {PREFERENCES_FILE}")
@@ -105,12 +109,14 @@ class SettingsDialog(QDialog):
             self.original_coins = []
             self.original_dynamic_coins = []
     
-    def _load_dynamic_coins(self):
+    def _load_dynamic_coins(self, force_log=False):
         """Load dynamic coins from fav_coins.json file."""
         try:
             # fav_coins.json dosyasının path'ini oluştur
             config_dir = os.path.dirname(PREFERENCES_FILE)
             fav_coins_file = os.path.join(config_dir, "fav_coins.json")
+            
+            previous_dynamic_coins = self.original_dynamic_coins.copy() if hasattr(self, 'original_dynamic_coins') else []
             
             if os.path.exists(fav_coins_file):
                 with open(fav_coins_file, 'r', encoding='utf-8') as f:
@@ -124,10 +130,16 @@ class SettingsDialog(QDialog):
                         if coin.get("original_input")
                     ]
                     
-                    logging.info(f"Loaded {len(self.original_dynamic_coins)} dynamic coins: {self.original_dynamic_coins}")
+                    # Only log if there are changes or if forced
+                    if force_log or set(previous_dynamic_coins) != set(self.original_dynamic_coins):
+                        if self.original_dynamic_coins:
+                            logging.info(f"Loaded {len(self.original_dynamic_coins)} dynamic coins: {self.original_dynamic_coins}")
+                        else:
+                            logging.info("No dynamic coins loaded")
             else:
                 self.original_dynamic_coins = []
-                logging.info("fav_coins.json file not found, no dynamic coins loaded")
+                if force_log or previous_dynamic_coins:  # Only log if there was a change
+                    logging.info("fav_coins.json file not found, no dynamic coins loaded")
                 
         except Exception as e:
             logging.error(f"Error loading dynamic coins: {e}")
@@ -168,6 +180,8 @@ class SettingsDialog(QDialog):
             
             # Preferences dosyasını güncelle
             updated_lines = []
+            dynamic_updated = False
+            
             for line in preferences_lines:
                 stripped_line = line.strip()
                 
@@ -180,26 +194,26 @@ class SettingsDialog(QDialog):
                     else:
                         updated_lines.append(line)  # Coin yoksa mevcut satırı koru
                 
-                # dynamic_coin satırını güncelle
-                elif stripped_line.startswith("dynamic_coin"):
+                # dynamic_coin satırını güncelle (duplikasyonu önle)
+                elif stripped_line.startswith("dynamic_coin") and not dynamic_updated:
                     if dynamic_coin_names:
-                        # İlk dynamic coin'i al (genellikle tek bir dynamic coin var)
-                        first_dynamic = dynamic_coin_names[0] if dynamic_coin_names else ""
+                        first_dynamic = dynamic_coin_names[0]
                         new_line = f"dynamic_coin = {first_dynamic}\n"
                         updated_lines.append(new_line)
                         logging.info(f"Updated dynamic_coin: {first_dynamic}")
                     else:
-                        updated_lines.append(line)  # Dynamic coin yoksa mevcut satırı koru
+                        updated_lines.append(line)
+                    dynamic_updated = True
                 
-                else:
-                    # Diğer satırları olduğu gibi koru
+                elif not (stripped_line.startswith("dynamic_coin") and dynamic_updated):
+                    # Diğer satırları olduğu gibi koru (duplikasyon hariç)
                     updated_lines.append(line)
             
             # Güncellenmiş preferences dosyasını yaz
             with open(PREFERENCES_FILE, 'w', encoding='utf-8') as f:
                 f.writelines(updated_lines)
             
-            logging.info("Preferences file updated successfully from JSON data")
+            logging.debug("Preferences file updated successfully from JSON data")
             
         except Exception as e:
             logging.error(f"Error updating preferences from JSON: {e}")
@@ -214,10 +228,37 @@ class SettingsDialog(QDialog):
                 else:
                     edit.setText("")
             
+            # Update risk input fields
+            for key, edit in self.risk_edits.items():
+                if key in self.original_prefs:
+                    value = self.original_prefs[key]
+                    # Clean formatting for display
+                    if key in ["soft_risk_percentage", "hard_risk_percentage"]:
+                        value = value.replace("%", "")
+                    elif key in ["soft_risk_by_usdt", "hard_risk_by_usdt"]:
+                        value = value.replace("USDT", "")
+                    edit.setText(value)
+                else:
+                    edit.setText("")
+            
             # Update interval input
             if self.interval_edit:
                 interval_val = self.original_prefs.get("chart_interval", "1")
                 self.interval_edit.setText(interval_val)
+            
+            # Update order type combo
+            if self.order_type_combo:
+                order_type_val = self.original_prefs.get("order_type", "MARKET")
+                index = self.order_type_combo.findText(order_type_val)
+                if index >= 0:
+                    self.order_type_combo.setCurrentIndex(index)
+            
+            # Update risk type combo
+            if self.risk_type_combo:
+                risk_type_val = self.original_prefs.get("risk_type", "PERCENTAGE")
+                index = self.risk_type_combo.findText(risk_type_val)
+                if index >= 0:
+                    self.risk_type_combo.setCurrentIndex(index)
             
             # Update favorite coins - need to recreate the coin inputs
             if hasattr(self, 'coins_container_layout'):
@@ -233,7 +274,7 @@ class SettingsDialog(QDialog):
                 # Add new dynamic coin inputs based on current data
                 self._recreate_dynamic_coins_inputs()
             
-            logging.info("UI refreshed with current preference data")
+            logging.debug("UI refreshed with current preference data")
             
         except Exception as e:
             logging.error(f"Error refreshing UI with current data: {e}")
@@ -255,6 +296,9 @@ class SettingsDialog(QDialog):
             
             # Add coin chart interval setting
             self._create_interval_setting(content_layout)
+            
+            # Add order type setting for dynamic coin
+            self._create_order_type_setting(content_layout)
             
             # Add grid layout to main layout
             main_layout.addLayout(content_layout)
@@ -301,18 +345,104 @@ class SettingsDialog(QDialog):
         """Create input fields for preferences using grid layout."""
         try:
             row = 0
-            for key in ("soft_risk", "hard_risk", "accepted_price_volatility"):
-                label = QLabel(key.replace("_", " ").title() + ":")
-                label.setStyleSheet(SETTINGS_LABEL_STYLE)
-                layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignRight)
-                
-                edit = QLineEdit(self.original_prefs.get(key, ""))
-                edit.setStyleSheet(SETTINGS_INPUT_STYLE)
-                edit.setMaximumHeight(25)  # Compact height
-                self.pref_edits[key] = edit
-                layout.addWidget(edit, row, 1)
-                
-                row += 1
+            
+            # Risk Type Selection
+            label = QLabel("Risk Type:")
+            label.setStyleSheet(SETTINGS_LABEL_STYLE)
+            layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignRight)
+            
+            risk_type_val = self.original_prefs.get("risk_type", "PERCENTAGE")
+            self.risk_type_combo = QComboBox()
+            self.risk_type_combo.addItems(["PERCENTAGE", "USDT"])
+            self.risk_type_combo.setCurrentText(risk_type_val)
+            self.risk_type_combo.setStyleSheet(SETTINGS_INPUT_STYLE)
+            self.risk_type_combo.setMaximumHeight(25)
+            layout.addWidget(self.risk_type_combo, row, 1)
+            row += 1
+            
+            # Soft Risk (Percentage)
+            label = QLabel("Soft Risk (%):")
+            label.setStyleSheet(SETTINGS_LABEL_STYLE)
+            layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignRight)
+            
+            soft_risk_val = self.original_prefs.get("soft_risk_percentage", "").replace("%", "")
+            edit = QLineEdit(soft_risk_val)
+            edit.setStyleSheet(SETTINGS_INPUT_STYLE)
+            edit.setMaximumHeight(25)
+            edit.setPlaceholderText("20")
+            # Add number validation (0-100 for percentage)
+            validator = QIntValidator(0, 100)
+            edit.setValidator(validator)
+            self.risk_edits["soft_risk_percentage"] = edit
+            layout.addWidget(edit, row, 1)
+            row += 1
+            
+            # Hard Risk (Percentage)
+            label = QLabel("Hard Risk (%):")
+            label.setStyleSheet(SETTINGS_LABEL_STYLE)
+            layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignRight)
+            
+            hard_risk_val = self.original_prefs.get("hard_risk_percentage", "").replace("%", "")
+            edit = QLineEdit(hard_risk_val)
+            edit.setStyleSheet(SETTINGS_INPUT_STYLE)
+            edit.setMaximumHeight(25)
+            edit.setPlaceholderText("35")
+            # Add number validation (0-100 for percentage)
+            validator = QIntValidator(0, 100)
+            edit.setValidator(validator)
+            self.risk_edits["hard_risk_percentage"] = edit
+            layout.addWidget(edit, row, 1)
+            row += 1
+            
+            # Soft Risk (USDT)
+            label = QLabel("Soft Risk (USDT):")
+            label.setStyleSheet(SETTINGS_LABEL_STYLE)
+            layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignRight)
+            
+            soft_risk_usdt_val = self.original_prefs.get("soft_risk_by_usdt", "").replace("USDT", "")
+            edit = QLineEdit(soft_risk_usdt_val)
+            edit.setStyleSheet(SETTINGS_INPUT_STYLE)
+            edit.setMaximumHeight(25)
+            edit.setPlaceholderText("15")
+            # Add number validation (0-999999 for USDT amounts)
+            validator = QDoubleValidator(0.0, 999999.99, 2)
+            edit.setValidator(validator)
+            self.risk_edits["soft_risk_by_usdt"] = edit
+            layout.addWidget(edit, row, 1)
+            row += 1
+            
+            # Hard Risk (USDT)
+            label = QLabel("Hard Risk (USDT):")
+            label.setStyleSheet(SETTINGS_LABEL_STYLE)
+            layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignRight)
+            
+            hard_risk_usdt_val = self.original_prefs.get("hard_risk_by_usdt", "").replace("USDT", "")
+            edit = QLineEdit(hard_risk_usdt_val)
+            edit.setStyleSheet(SETTINGS_INPUT_STYLE)
+            edit.setMaximumHeight(25)
+            edit.setPlaceholderText("20")
+            # Add number validation (0-999999 for USDT amounts)
+            validator = QDoubleValidator(0.0, 999999.99, 2)
+            edit.setValidator(validator)
+            self.risk_edits["hard_risk_by_usdt"] = edit
+            layout.addWidget(edit, row, 1)
+            row += 1
+            
+            # Accepted Price Volatility
+            label = QLabel("Accepted Price Volatility:")
+            label.setStyleSheet(SETTINGS_LABEL_STYLE)
+            layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignRight)
+            
+            volatility_val = self.original_prefs.get("accepted_price_volatility", "").replace("%", "")
+            edit = QLineEdit(volatility_val)
+            edit.setStyleSheet(SETTINGS_INPUT_STYLE)
+            edit.setMaximumHeight(25)
+            edit.setPlaceholderText("3")
+            # Add number validation (0-100 for percentage)
+            validator = QIntValidator(0, 100)
+            edit.setValidator(validator)
+            self.pref_edits["accepted_price_volatility"] = edit
+            layout.addWidget(edit, row, 1)
                 
         except Exception as e:
             logging.error(f"Error creating preference inputs: {e}")
@@ -331,10 +461,37 @@ class SettingsDialog(QDialog):
             self.interval_edit.setStyleSheet(SETTINGS_INPUT_STYLE)
             self.interval_edit.setPlaceholderText("1, 5 or 15")
             self.interval_edit.setMaximumHeight(25)  # Compact height
+            # Add validation for specific values
+            self.interval_edit.setToolTip("Only 1, 5, or 15 are allowed")
             layout.addWidget(self.interval_edit, row, 1)
             
         except Exception as e:
             logging.error(f"Error creating interval setting: {e}")
+    
+    def _create_order_type_setting(self, layout):
+        """Create the order type setting for dynamic coin trading using grid layout."""
+        try:
+            row = layout.rowCount()
+            
+            label = QLabel("Order Type:")
+            label.setStyleSheet(SETTINGS_LABEL_STYLE)
+            layout.addWidget(label, row, 0, Qt.AlignmentFlag.AlignRight)
+            
+            # Doğru key kullan: "order_type" (preferences.txt'deki ile aynı)
+            order_type_val = self.original_prefs.get("order_type", "MARKET")
+            self.order_type_combo = QComboBox()
+            self.order_type_combo.addItems(["MARKET", "LIMIT"])
+            self.order_type_combo.setCurrentText(order_type_val)
+            self.order_type_combo.setStyleSheet(SETTINGS_INPUT_STYLE)
+            self.order_type_combo.setMaximumHeight(25)  # Compact height
+            
+            # Order type will be saved only when Save Settings button is clicked
+            # No immediate save on change - removed currentTextChanged connection
+            
+            layout.addWidget(self.order_type_combo, row, 1)
+            
+        except Exception as e:
+            logging.error(f"Error creating order type setting: {e}")
     
     def _create_favorite_coins_inputs(self, layout):
         """Create input fields for favorite coins in a vertical centered layout."""
@@ -533,11 +690,96 @@ class SettingsDialog(QDialog):
             # Update preferences if there are changes
             for key, edit in self.pref_edits.items():
                 new_val = edit.text().strip()
-                old_val = self.original_prefs.get(key, "")
+                old_val = self.original_prefs.get(key, "").replace("%", "")
                 
                 if new_val and new_val != old_val:
-                    msg = set_preference(key, new_val)
-                    messages.append(msg)
+                    # Validate numeric input for volatility
+                    if key == "accepted_price_volatility":
+                        try:
+                            num_val = float(new_val)
+                            if not (0 <= num_val <= 100):
+                                QMessageBox.critical(self, "Invalid Value", 
+                                                   "Price Volatility: Percentage must be between 0-100")
+                                return
+                            formatted_val = f"%{int(num_val)}"
+                        except ValueError:
+                            QMessageBox.critical(self, "Invalid Value", 
+                                               "Price Volatility: Please enter only numbers")
+                            return
+                    else:
+                        formatted_val = new_val
+                    
+                    msg = set_preference(key, formatted_val)
+                    # Only add message if it indicates an actual change was made
+                    if not msg.endswith("already set to " + formatted_val):
+                        messages.append(msg)
+            
+            # Update risk preferences with proper formatting and validation
+            for key, edit in self.risk_edits.items():
+                new_val = edit.text().strip()
+                if not new_val:
+                    continue
+                
+                # Validate that value is numeric
+                try:
+                    if key in ["soft_risk_percentage", "hard_risk_percentage"]:
+                        # Validate percentage (0-100)
+                        num_val = float(new_val)
+                        if not (0 <= num_val <= 100):
+                            QMessageBox.critical(self, "Invalid Value", 
+                                               f"{key.replace('_', ' ').title()}: Percentage must be between 0-100")
+                            return
+                        formatted_val = f"%{int(num_val)}"
+                    elif key in ["soft_risk_by_usdt", "hard_risk_by_usdt"]:
+                        # Validate USDT amount (positive number)
+                        num_val = float(new_val)
+                        if num_val <= 0:
+                            QMessageBox.critical(self, "Invalid Value", 
+                                               f"{key.replace('_', ' ').title()}: USDT amount must be greater than 0")
+                            return
+                        formatted_val = f"{num_val:g}USDT"  # Remove unnecessary decimals
+                    else:
+                        formatted_val = new_val
+                        
+                except ValueError:
+                    QMessageBox.critical(self, "Invalid Value", 
+                                       f"{key.replace('_', ' ').title()}: Please enter only numbers")
+                    return
+                
+                # Compare with original
+                old_val = self.original_prefs.get(key, "")
+                # For percentage values, ensure we compare properly (old_val doesn't have %)
+                if key in ["soft_risk_percentage", "hard_risk_percentage"]:
+                    old_val_with_percent = f"%{old_val}" if old_val else ""
+                    if formatted_val != old_val_with_percent:
+                        msg = set_preference(key, formatted_val)
+                        # Only add message if it indicates an actual change was made
+                        if not msg.endswith("already set to " + formatted_val):
+                            messages.append(msg)
+                elif key in ["soft_risk_by_usdt", "hard_risk_by_usdt"]:
+                    old_val_with_usdt = f"{old_val}USDT" if old_val else ""
+                    if formatted_val != old_val_with_usdt:
+                        msg = set_preference(key, formatted_val)
+                        # Only add message if it indicates an actual change was made
+                        if not msg.endswith("already set to " + formatted_val):
+                            messages.append(msg)
+                else:
+                    if formatted_val != old_val:
+                        msg = set_preference(key, formatted_val)
+                        # Only add message if it indicates an actual change was made
+                        if not msg.endswith("already set to " + formatted_val):
+                            messages.append(msg)
+            
+            # Update risk type if changed
+            if self.risk_type_combo:
+                risk_type_val = self.risk_type_combo.currentText()
+                old_risk_type = self.original_prefs.get("risk_type", "PERCENTAGE")
+                
+                if risk_type_val != old_risk_type:
+                    msg = set_preference("risk_type", risk_type_val)
+                    # Only add message if it indicates an actual change was made
+                    if not msg.endswith("already set to " + risk_type_val):
+                        messages.append(msg)
             
             # Validate and update chart interval
             if self.interval_edit:
@@ -551,7 +793,25 @@ class SettingsDialog(QDialog):
                 
                 if interval_val != old_interval:
                     msg = set_preference("chart_interval", interval_val)
-                    messages.append(msg)
+                    # Only add message if it indicates an actual change was made
+                    if not msg.endswith("already set to " + interval_val):
+                        messages.append(msg)
+            
+            # Update order type preference
+            if self.order_type_combo:
+                order_type_val = self.order_type_combo.currentText()
+                old_order_type = self.original_prefs.get("order_type", "MARKET")
+                
+                if order_type_val not in ("MARKET", "LIMIT"):
+                    QMessageBox.critical(self, "Invalid Order Type", 
+                                       "Order type must be MARKET or LIMIT.")
+                    return
+                
+                if order_type_val != old_order_type:
+                    msg = set_preference("order_type", order_type_val)
+                    # Check for various success indicators
+                    if not (msg.endswith("already set to " + order_type_val) or "already set" in msg):
+                        messages.append(msg)
             
             # Update favorite coins using efficient method (like submit button)
             new_favorite_coins = []
@@ -650,9 +910,7 @@ class SettingsDialog(QDialog):
                     msg = set_preference("favorite_coins", new_coins_str)
                     messages.append(msg)
                     
-                    # Subscribe to new coins via WebSocket (no restart needed)
-                    self._subscribe_to_new_coins([coin['symbol'] for coin in validated_coins if coin['symbol']])
-                    
+                    # WebSocket subscriptions are handled automatically by the live price service
                     logging.info(f"Efficiently updated favorite coins: {new_coins_str}")
                 else:
                     msg = set_preference("favorite_coins", "")
@@ -704,29 +962,4 @@ class SettingsDialog(QDialog):
             error_msg = f"Error updating dynamic coin efficiently: {e}"
             logging.error(error_msg)
             messages.append(f"❌ {error_msg}")
-    
-    def _subscribe_to_new_coins(self, binance_tickers):
-        """Subscribe to new favorite coins via WebSocket (efficient method)."""
-        try:
-            # Import here to avoid circular imports
-            from services.live_price_service import ws, connection_active, pending_subscriptions
-            import json
-            
-            if ws and connection_active:
-                for ticker in binance_tickers:
-                    if ticker:  # Only for non-empty tickers
-                        ticker_symbol = f"{ticker.lower().replace('usdt', '')}usdt@ticker"
-                        try:
-                            ws.send(json.dumps({
-                                "method": "SUBSCRIBE",
-                                "params": [ticker_symbol],
-                                "id": len(pending_subscriptions) + 1
-                            }))
-                            logging.info(f"Subscribed to new favorite coin: {ticker_symbol}")
-                        except Exception as e:
-                            logging.error(f"Error subscribing to {ticker_symbol}: {e}")
-            else:
-                logging.warning("WebSocket not active, coins updated but not subscribed yet")
-                
-        except Exception as e:
-            logging.error(f"Error subscribing to new coins: {e}")
+

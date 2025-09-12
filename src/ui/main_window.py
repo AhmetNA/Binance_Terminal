@@ -12,14 +12,16 @@ import threading
 
 # Add project paths
 current_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.dirname(current_dir)
+src_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.append(src_dir)
 
 # Import centralized paths
 from core.paths import FAV_COINS_FILE, BTC_ICON_FILE, FAVORITE_COIN_COUNT, DYNAMIC_COIN_INDEX
 
 # Import services
-from services.order_service import *
+from services.client_service import prepare_client
+from services.account_service import retrieve_usdt_balance
+from services.orders.order_service import make_order
 from utils.data_utils import load_fav_coins
 from utils.symbol_utils import view_coin_format
 from services.live_price_service import (
@@ -44,7 +46,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QVBoxLayout, QHBoxLayout, QMessageBox
 )
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QKeyEvent
 from PySide6.QtCore import Qt, QTimer
 
 
@@ -94,7 +96,7 @@ class MainWindow(QMainWindow):
         """Setup window size and position."""
         try:
             screen = QApplication.primaryScreen().geometry()
-            win_w, win_h = 600, 400
+            win_w, win_h = 750, 450
             center_x = screen.x() + (screen.width() - win_w) // 2
             center_y = screen.y() + (screen.height() - win_h) // 2
             offset_x = 200
@@ -258,13 +260,74 @@ class MainWindow(QMainWindow):
     def _handle_order_request(self, operation_type, coin_index):
         """Handle order requests from components."""
         try:
+            # Validate coin index before proceeding
+            data = load_fav_coins()
+            max_coin_index = len(data.get('coins', [])) - 1
+            
+            if coin_index != DYNAMIC_COIN_INDEX and coin_index > max_coin_index:
+                error_msg = f"Invalid coin index {coin_index}. Max available: {max_coin_index}"
+                logging.error(error_msg)
+                self.terminal_widget.append_message(f"❌ {error_msg}")
+                return
+            
             symbol = self._retrieve_coin_symbol(coin_index)
+            if not symbol:
+                error_msg = f"Could not retrieve valid symbol for coin {coin_index}"
+                logging.error(error_msg)
+                self.terminal_widget.append_message(f"❌ {error_msg}")
+                return
+                
             old_balance = retrieve_usdt_balance(self.client)
-            order_paper = make_order(operation_type, symbol)
+            
+            # Get order type preference from settings - applies to all coins
+            from config.preferences_service import get_order_type_preference
+            order_type = get_order_type_preference()
+            
+            # Log which coin type and order type is being used
+            if coin_index == DYNAMIC_COIN_INDEX:
+                logging.info(f"Using {order_type} order type for dynamic coin {symbol}")
+            else:
+                logging.info(f"Using {order_type} order type for favorite coin {symbol}")
+            
+            # Terminal callback function to send messages to terminal widget
+            def terminal_callback(message):
+                if hasattr(self, 'terminal_widget'):
+                    self.terminal_widget.append_message(message)
 
-            amount = float(order_paper['fills'][0]['qty'])
-            price = float(order_paper['fills'][0]['price'])
-            cost_or_received = float(order_paper.get('cummulativeQuoteQty', amount * price))
+            order_paper = make_order(
+                Style=operation_type, 
+                Symbol=symbol, 
+                order_type=order_type, 
+                limit_price=None, 
+                amount_or_percentage=None,  # Will use preferences default
+                amount_type='percentage',   # Default to percentage
+                terminal_callback=terminal_callback
+            )
+            # Log the order response for debugging
+            logging.debug(f"Order response for {operation_type} {symbol}: {order_paper}")
+
+            # Handle both filled and unfilled orders safely
+            try:
+                if order_paper.get('fills') and len(order_paper['fills']) > 0:
+                    # Order was filled (market orders or immediately filled limit orders)
+                    amount = float(order_paper['fills'][0]['qty'])
+                    price = float(order_paper['fills'][0]['price'])
+                    cost_or_received = float(order_paper.get('cummulativeQuoteQty', amount * price))
+                    logging.debug(f"Using filled order data: amount={amount}, price={price}, cost={cost_or_received}")
+                else:
+                    # Order not filled yet (limit orders waiting to be filled)
+                    amount = float(order_paper.get('origQty', 0))
+                    price = float(order_paper.get('price', 0))
+                    cost_or_received = amount * price
+                    logging.info(f"Limit order placed but not filled yet: {amount} {symbol} @ ${price}")
+            except (ValueError, KeyError, TypeError) as parse_error:
+                logging.error(f"Error parsing order response: {parse_error}")
+                logging.error(f"Order response structure: {order_paper}")
+                # Use fallback values
+                amount = 0.0
+                price = 0.0
+                cost_or_received = 0.0
+            
             new_balance = retrieve_usdt_balance(self.client)
 
             if "Buy" in operation_type:
@@ -276,16 +339,34 @@ class MainWindow(QMainWindow):
             action_type = "H" if "Hard" in operation_type else "S"
             
             # Send message to terminal
-            message = (f"[{action_type}] {operation} {symbol} | "
-                      f"{amount:.2f} @ ${price:.2f} | "
-                      f"Total: ${cost_or_received:.2f} | "
-                      f"Balance: ${new_balance:.2f}")
-            self.terminal_widget.append_message(message)
+            try:
+                status = "FILLED" if order_paper.get('fills') and len(order_paper['fills']) > 0 else order_paper.get('status', 'PENDING')
+                # Use more decimal places for amount to show small cryptocurrency quantities correctly
+                amount_str = f"{amount:.5f}".rstrip('0').rstrip('.')
+                message = (f"[{action_type}] {operation} {symbol} | "
+                          f"{amount_str} @ ${price:.2f} | "
+                          f"Total: ${cost_or_received:.2f} | "
+                          f"Balance: ${new_balance:.2f} | "
+                          f"Order Type: {order_type} | Status: {status}")
+                self.terminal_widget.append_message(message)
+            except Exception as msg_error:
+                logging.error(f"Error creating terminal message: {msg_error}")
+                fallback_msg = f"[{action_type}] {operation} {symbol} completed | Balance: ${new_balance:.2f}"
+                self.terminal_widget.append_message(fallback_msg)
             
         except Exception as e:
             error_msg = f"Error processing {operation_type} for coin {coin_index}: {e}"
             self.terminal_widget.append_message(error_msg)
             logging.error(error_msg)
+            
+            # Additional debugging info
+            try:
+                data = load_fav_coins()
+                coin_count = len(data.get('coins', []))
+                logging.error(f"Debug info - Current coin count: {coin_count}, Requested index: {coin_index}")
+                logging.error(f"Debug info - Available coins: {[coin.get('name', 'Unknown') for coin in data.get('coins', [])]}")
+            except Exception as debug_e:
+                logging.error(f"Debug info - Could not load coin data for debugging: {debug_e}")
     
     def _handle_coin_details(self, coin_button):
         """Handle coin details requests from components."""
@@ -431,12 +512,24 @@ class MainWindow(QMainWindow):
         try:
             data = load_fav_coins()
             if coin_index == DYNAMIC_COIN_INDEX:
-                return data['dynamic_coin'][0]['symbol']
+                if 'dynamic_coin' in data and len(data['dynamic_coin']) > 0:
+                    symbol = data['dynamic_coin'][0]['symbol']
+                    logging.info(f"Retrieved dynamic coin symbol: {symbol}")
+                    return symbol
+                else:
+                    logging.error(f"Dynamic coin data not available")
+                    return None
             else:
-                return data['coins'][coin_index]['symbol']
+                if 'coins' in data and len(data['coins']) > coin_index:
+                    symbol = data['coins'][coin_index]['symbol']
+                    logging.info(f"Retrieved coin symbol for index {coin_index}: {symbol}")
+                    return symbol
+                else:
+                    logging.error(f"Coin index {coin_index} out of range. Available coins: {len(data.get('coins', []))}")
+                    return None
         except Exception as e:
             logging.error(f"Error retrieving coin symbol for index {coin_index}: {e}")
-            return f"COIN_{coin_index}"
+            return None
     
     def _create_error_interface(self, error):
         """Create minimal error interface."""
@@ -608,6 +701,79 @@ class MainWindow(QMainWindow):
         else:
             print(f"LOG: {text}")
     
+    def keyPressEvent(self, event: QKeyEvent):
+        """Handle keyboard shortcuts."""
+        try:
+            key = event.key()
+            
+            # T key - Toggle order type between MARKET and LIMIT
+            if key == Qt.Key_T:
+                self._toggle_order_type()
+            
+            # Pass event to parent for other key handling
+            else:
+                super().keyPressEvent(event)
+                
+        except Exception as e:
+            logging.error(f"Error handling key press: {e}")
+            super().keyPressEvent(event)
+    
+    def _toggle_order_type(self):
+        """Toggle order type between MARKET and LIMIT."""
+        try:
+            from services.orders.order_type_manager import toggle_order_type, get_current_order_type
+            
+            # Get current order type before changing
+            old_type = get_current_order_type()
+            
+            # Toggle order type
+            new_type = toggle_order_type()
+            
+            if new_type != old_type:
+                # Show success message to user via terminal
+                message = f"🔄 Order Type changed: {old_type} → {new_type}"
+                if hasattr(self, 'terminal_widget'):
+                    self.terminal_widget.append_message(message)
+                
+                logging.info(f"✅ Order type toggled via keyboard shortcut: {old_type} → {new_type}")
+                
+                # Also show popup message
+                self._show_order_type_notification(f"Order Type: {new_type}")
+            else:
+                # Failed to change
+                error_message = f"❌ Failed to toggle order type from {old_type}"
+                if hasattr(self, 'terminal_widget'):
+                    self.terminal_widget.append_message(error_message)
+                
+                logging.error(f"Failed to toggle order type from {old_type}")
+                
+        except Exception as e:
+            error_message = f"❌ Error toggling order type: {str(e)}"
+            if hasattr(self, 'terminal_widget'):
+                self.terminal_widget.append_message(error_message)
+            logging.error(f"Error in _toggle_order_type: {e}")
+    
+    def _show_order_type_notification(self, message: str):
+        """Show a brief notification for order type change."""
+        try:
+            # Show a non-blocking information message
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setWindowTitle("Order Type Changed")
+            msg_box.setText(message)
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            
+            # Make it auto-close after 2 seconds
+            from PySide6.QtCore import QTimer
+            timer = QTimer()
+            timer.timeout.connect(msg_box.accept)
+            timer.start(2000)  # 2 seconds
+            
+            msg_box.exec()
+            
+        except Exception as e:
+            logging.error(f"Error showing order type notification: {e}")
+    
     def show_error_message(self, message):
         """Show error message dialog."""
         msg_box = QMessageBox(self)
@@ -617,25 +783,7 @@ class MainWindow(QMainWindow):
         msg_box.exec()
 
 
-# Backward compatibility functions
-def load_fav_coin():
-    """Backward compatibility wrapper for load_fav_coins()"""
-    return load_fav_coins()
-
-
-def retrieve_coin_symbol(col):
-    """Backward compatibility function for retrieving coin symbol."""
-    data = load_fav_coin()
-    coins = data['coins']
-    if col == DYNAMIC_COIN_INDEX:
-        return data['dynamic_coin'][0]['symbol']
-    else:
-        return coins[col]['symbol']
-
-
-def order_buttons(main_window, style, col):
-    """Backward compatibility function for order buttons."""
-    main_window._handle_order_request(style, col)
+# Backward compatibility functions removed - these were not being used in the codebase
 
 
 def initialize_gui():
@@ -686,19 +834,3 @@ def initialize_gui():
         return -1
 
 
-def main():
-    """Main function for standalone execution."""
-    client = prepare_client()
-    
-    # Start background thread for price updates
-    background_thread = threading.Thread(target=start_price_websocket, daemon=True)
-    background_thread.start()
-
-    app = QApplication(sys.argv)
-    window = MainWindow(client)
-    window.show()
-    sys.exit(app.exec())
-
-
-if __name__ == "__main__":
-    main()

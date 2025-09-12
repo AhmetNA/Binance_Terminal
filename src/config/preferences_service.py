@@ -182,9 +182,12 @@ def set_preference(key: str, new_value: str) -> str:
                 return f"{key} preference is already set to {new_value}"
             logging.info(f"Updating preference {key} from '{current_value}' to '{new_value}'")
             
-            # Sadece risk ve volatilite tercihlerine % ekle
+            # Sadece risk ve volatilite tercihlerine % ekle (eğer yoksa)
             if key in ['soft_risk', 'hard_risk', 'accepted_price_volatility']:
-                new_lines.append(f"{key} = %{new_value}\n")
+                if not new_value.startswith('%'):
+                    new_lines.append(f"{key} = %{new_value}\n")
+                else:
+                    new_lines.append(f"{key} = {new_value}\n")
             else:
                 new_lines.append(f"{key} = {new_value}\n")
             updated = True
@@ -205,8 +208,8 @@ def set_preference(key: str, new_value: str) -> str:
             f.writelines(new_lines)
         logging.info(f"Successfully saved preference {key} to file: {PREFERENCES_FILE}")
         
-        # 🔄 CACHE RELOAD: Risk preferences değiştiyse cache'i temizle
-        if key in ['soft_risk', 'hard_risk']:
+        # 🔄 CACHE RELOAD: Risk preferences veya order type değiştiyse cache'i temizle
+        if key in ['soft_risk', 'hard_risk', 'order_type']:
             try:
                 from config.preferences_manager import force_preferences_reload
                 new_prefs = force_preferences_reload()
@@ -223,11 +226,17 @@ def set_preference(key: str, new_value: str) -> str:
         'soft_risk': 'Soft Risk Level',
         'hard_risk': 'Hard Risk Level',
         'default_coin': 'Default Coin',
-        'auto_refresh': 'Auto Refresh'
+        'auto_refresh': 'Auto Refresh',
+        'order_type': 'Order Type'
     }
     
     display_name = friendly_names.get(key, key.replace('_', ' ').title())
-    return f"✅ {display_name} set to {new_value}"
+    
+    # Special handling for order_type to make it more prominent
+    if key == 'order_type':
+        return f"🔄 Order Type switched to {new_value}"
+    else:
+        return f"✅ {display_name} set to {new_value}"
 
 
 def validate_coin_symbol(coin_symbol: str) -> bool:
@@ -250,6 +259,41 @@ def validate_coin_symbol(coin_symbol: str) -> bool:
     except Exception as e:
         logging.error(f"Error validating coin symbol {coin_symbol}: {e}")
         return False
+
+def get_order_type_preference() -> str:
+    """
+    Get the preferred order type for all trading from preferences.
+    Returns 'MARKET' or 'LIMIT', defaults to 'MARKET' if not set.
+    """
+    try:
+        with open(PREFERENCES_FILE, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                # Look for 'order_type' instead of 'dynamic_coin_order_type'
+                if line.startswith("order_type") and "=" in line:
+                    try:
+                        key, val = line.split("=", 1)
+                        order_type = val.strip().upper()
+                        if order_type in ["MARKET", "LIMIT"]:
+                            logging.debug(f"Order type from preferences: {order_type}")
+                            return order_type
+                        else:
+                            logging.warning(f"Invalid order type in preferences: {order_type}, defaulting to MARKET")
+                            return "MARKET"
+                    except Exception:
+                        continue
+        
+        # If not found in preferences, return default
+        logging.debug("Order type not found in preferences, defaulting to MARKET")
+        return "MARKET"
+        
+    except FileNotFoundError:
+        logging.warning(f"Preferences file not found: {PREFERENCES_FILE}, defaulting to MARKET order type")
+        return "MARKET"
+    except Exception as e:
+        logging.error(f"Error reading order type preference: {e}, defaulting to MARKET")
+        return "MARKET"
+
 
 def update_favorite_coin(old_coin: str, new_coin: str) -> str:
     """

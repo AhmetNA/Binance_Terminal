@@ -1,8 +1,7 @@
 import aiohttp
 import asyncio
-from typing import Optional, Dict, Any
+from typing import Optional
 import ssl
-import weakref
 import atexit
 from core.logger import get_main_logger
 
@@ -95,19 +94,4 @@ async def close_http_session():
     """Global HTTP session'ı kapat"""
     await _pool_manager.close()
 
-def close_http_session_sync():
-    """Sync olarak HTTP session'ı kapat"""
-    try:
-        loop = asyncio.get_event_loop()
-        if not loop.is_closed():
-            loop.run_until_complete(_pool_manager.close())
-    except:
-        # Event loop yoksa veya kapalıysa manuel cleanup
-        if _pool_manager.session:
-            _pool_manager._cleanup_on_exit()
 
-# Requests-style synchronous wrapper for backwards compatibility
-def get_session_sync():
-    """Sync context için basit session döndür"""
-    import requests
-    return requests.Session()

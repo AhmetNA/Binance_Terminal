@@ -1,4 +1,4 @@
-# config.py
+# globals.py
 # Tüm paketlerde ortak kullanılan global sabitler ve değişkenler burada tutulur.
 # Path tanımları artık paths.py modülünden import edilir.
 

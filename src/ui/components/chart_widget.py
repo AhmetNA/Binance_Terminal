@@ -7,7 +7,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 src_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.append(src_dir)
 
-from core.config import PREFERENCES_FILE
+from core.paths import PREFERENCES_FILE
 
 """
 This module retrieves and formats candlestick data from the Binance API.

@@ -171,94 +171,6 @@ def get_daily_analytics_file(date_str: str = None) -> str:
     
     return os.path.join(ANALYTICS_DIR, f'analytics_{date_str}.json')
 
-def get_dated_log_file(date_str: str = None) -> str:
-    """
-    Belirli bir tarih için log dosyasının yolunu döndürür.
-    
-    Args:
-        date_str: YYYYMMDD formatında tarih. None ise bugünün tarihi kullanılır.
-    
-    Returns:
-        str: Log dosyasının tam yolu
-    """
-    if date_str is None:
-        from datetime import datetime
-        date_str = datetime.now().strftime('%Y%m%d')
-    
-    return os.path.join(LOGS_DIR, f'binance_terminal_{date_str}.log')
-
-def validate_paths() -> bool:
-    """
-    Tüm kritik path'lerin geçerliliğini kontrol eder.
-    
-    Returns:
-        bool: True eğer tüm path'ler geçerliyse
-    """
-    critical_paths = {
-        'PROJECT_ROOT': PROJECT_ROOT,
-        'SRC_DIR': SRC_DIR,
-        'SETTINGS_DIR': SETTINGS_DIR,
-        'DATA_DIR': DATA_DIR
-    }
-    
-    valid = True
-    for name, path in critical_paths.items():
-        if not os.path.exists(path):
-            logging.error(f"Critical path does not exist: {name} = {path}")
-            valid = False
-        else:
-            logging.debug(f"Critical path validated: {name} = {path}")
-    
-    return valid
-
-def get_path_info() -> dict:
-    """
-    Debugging için tüm path bilgilerini döndürür.
-    
-    Returns:
-        dict: Path bilgileri
-    """
-    return {
-        'base_directories': {
-            'PROJECT_ROOT': PROJECT_ROOT,
-            'SRC_DIR': SRC_DIR,
-            'CURRENT_DIR': CURRENT_DIR
-        },
-        'config_directories': {
-            'SETTINGS_DIR': SETTINGS_DIR,
-            'CONFIG_DIR': CONFIG_DIR
-        },
-        'data_directories': {
-            'DATA_DIR': DATA_DIR,
-            'TRADES_DIR': TRADES_DIR,
-            'PORTFOLIO_DIR': PORTFOLIO_DIR,
-            'ANALYTICS_DIR': ANALYTICS_DIR
-        },
-        'other_directories': {
-            'LOGS_DIR': LOGS_DIR,
-            'ASSETS_DIR': ASSETS_DIR
-        },
-        'config_files': {
-            'PREFERENCES_FILE': PREFERENCES_FILE,
-            'FAV_COINS_FILE': FAV_COINS_FILE,
-            'ENV_FILE': ENV_FILE
-        },
-        'log_files': {
-            'MAIN_LOG_FILE': MAIN_LOG_FILE,
-            'DEBUG_LOG_FILE': DEBUG_LOG_FILE,
-            'BUGS_LOG_FILE': BUGS_LOG_FILE,
-            'ROOT_LOG_FILE': ROOT_LOG_FILE
-        },
-        'asset_files': {
-            'BTC_ICON_FILE': BTC_ICON_FILE
-        },
-        'runtime_info': {
-            'is_frozen': getattr(sys, 'frozen', False),
-            'has_meipass': hasattr(sys, '_MEIPASS'),
-            'executable_dir': os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else None
-        }
-    }
-
 # ===== BACKWARDS COMPATIBILITY ALIASES =====
 
 # Legacy constants for backwards compatibility
@@ -272,23 +184,12 @@ DYNAMIC_COIN_KEY = "dynamic_coin"
 
 # ===== MODULE INITIALIZATION =====
 
-def _initialize_paths():
-    """Module düzeyinde initialization."""
-    try:
-        # Ensure directories exist on import
-        ensure_directories()
-        
-        # Validate critical paths
-        if not validate_paths():
-            logging.warning("Some critical paths are invalid - application may not work correctly")
-        
-        logging.debug("Paths module initialized successfully")
-        
-    except Exception as e:
-        logging.error(f"Error initializing paths module: {e}")
-
-# Initialize on import
-_initialize_paths()
+# Ensure directories exist on import
+try:
+    ensure_directories()
+    logging.debug("Paths module initialized successfully")
+except Exception as e:
+    logging.error(f"Error initializing paths module: {e}")
 
 # ===== EXPORTS =====
 
@@ -319,8 +220,7 @@ __all__ = [
     
     # Helper functions
     'ensure_directories', 'get_daily_trades_file', 'get_daily_portfolio_file',
-    'get_daily_analytics_file', 'get_dated_log_file', 'validate_paths',
-    'get_path_info',
+    'get_daily_analytics_file',
     
     # Backwards compatibility
     'FAVORITE_COIN_COUNT', 'DYNAMIC_COIN_INDEX', 'USDT', 'TICKER_SUFFIX',

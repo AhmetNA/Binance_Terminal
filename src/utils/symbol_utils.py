@@ -10,7 +10,15 @@ import os
 # Add src to path for core imports (optimized)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.config import TICKER_SUFFIX
+try:
+    from core.globals import TICKER_SUFFIX
+except ImportError:
+    # Fallback if running from different context
+    try:
+        from src.core.globals import TICKER_SUFFIX
+    except ImportError:
+        # Define locally if core module is not available
+        TICKER_SUFFIX = "@ticker"
 
 
 def format_binance_ticker_symbols(symbols):
@@ -314,34 +322,7 @@ def validate_coin_before_setting(user_input):
     )
 
 
-def split_symbol_pair(symbol):
-    """
-    Split trading pair into base and quote assets
-    Optimized for USDT pairs, falls back to general approach for others
-    Args:
-        symbol: Trading pair symbol (e.g., 'BTCUSDT', 'ETHBTC')
-    Returns:
-        tuple: (base_symbol, quote_symbol)
-    """
-    ticker = normalize_symbol(symbol)
-    
-    # USDT pairs için optimize edilmiş (bizim ana kullanım)
-    if ticker.endswith('USDT'):
-        return ticker[:-4], 'USDT'
-    
-    # Diğer yaygın quote asset'ler
-    common_quotes = ['USDC', 'BUSD', 'BNB', 'ETH', 'BTC']
-    for quote in common_quotes:
-        if ticker.endswith(quote):
-            return ticker[:-len(quote)], quote
-    
-    # Genel yaklaşım - son 3-4 karakter quote olarak kabul et
-    if len(ticker) > 6:
-        return ticker[:-4], ticker[-4:]
-    elif len(ticker) > 3:
-        return ticker[:-3], ticker[-3:]
-    
-    return ticker, ""
+
 
 
 if __name__ == "__main__":
@@ -406,11 +387,7 @@ if __name__ == "__main__":
         else:
             print(f"     Error: {error}")
     
-    # Test improved symbol splitting
-    test_pairs = ['BTCUSDT', 'ETHBTC', 'ADABNB', 'BNBUSDC', 'SOLUSDT']
-    print(f"\n🔄 Testing improved split_symbol_pair:")
-    for pair in test_pairs:
-        base, quote = split_symbol_pair(pair)
-        print(f"   {pair} -> Base: {base}, Quote: {quote}")
+    # Test improved symbol splitting - removed function
+    print(f"\n🔄 Symbol splitting functionality removed")
     
     print("\n✅ Symbol utils test completed successfully!")

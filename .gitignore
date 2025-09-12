@@ -3,6 +3,12 @@ __pycache__/
 *.pyc
 *.egg-info/
 
+# Virtual environment
+venv/
+env/
+.venv/
+.env/
+
 .github
 .vscode
 
@@ -31,3 +37,5 @@ build/
 dist/
 
 todos.txt
+
+run.sh

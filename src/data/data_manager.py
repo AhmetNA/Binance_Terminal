@@ -139,32 +139,7 @@ class DataManager:
             logging.error(f"Portfolio data that failed to save: {portfolio_data}")
             logging.exception("Full traceback for portfolio saving error:")
     
-    def get_latest_portfolio(self) -> Optional[Dict]:
-        """Son portföy durumunu getirir."""
-        try:
-            if os.path.exists(LATEST_PORTFOLIO_FILE):
-                with open(LATEST_PORTFOLIO_FILE, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            return None
-        except Exception as e:
-            logging.error(f"Error loading latest portfolio: {e}")
-            logging.error(f"Failed to load from file: {LATEST_PORTFOLIO_FILE}")
-            logging.exception("Full traceback for portfolio loading error:")
-            return None
-    
-    def get_trades_by_date(self, date: str) -> List[Dict]:
-        """Belirli bir tarihteki işlemleri getirir."""
-        try:
-            trades_file = get_daily_trades_file(date)
-            if os.path.exists(trades_file):
-                with open(trades_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            return []
-        except Exception as e:
-            logging.error(f"Error loading trades for {date}: {e}")
-            logging.error(f"Failed to load from file: {get_daily_trades_file(date)}")
-            logging.exception("Full traceback for trades loading error:")
-            return []
+
     
     def get_trades_summary(self, days: int = 7) -> Dict:
         """Son N günün işlem özetini getirir."""
@@ -183,20 +158,29 @@ class DataManager:
             
             for i in range(days):
                 date = (end_date - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
-                trades = self.get_trades_by_date(date)
+                trades_file = get_daily_trades_file(date)
                 
-                for trade in trades:
-                    summary['total_trades'] += 1
-                    side = trade.get('side', '').upper()
-                    if side == 'BUY' or side == 'buy':
-                        summary['total_buy_volume'] += trade.get('total', trade.get('total_cost', 0))
-                    elif side == 'SELL' or side == 'sell':
-                        summary['total_sell_volume'] += trade.get('total', trade.get('total_cost', 0))
+                if os.path.exists(trades_file):
+                    with open(trades_file, 'r', encoding='utf-8') as f:
+                        trades = json.load(f)
+                        
+                        for trade in trades:
+                            summary['total_trades'] += 1
+                            side = trade.get('side', '').upper()
+                            if side == 'BUY' or side == 'buy':
+                                summary['total_buy_volume'] += trade.get('total', trade.get('total_cost', 0))
+                            elif side == 'SELL' or side == 'sell':
+                                summary['total_sell_volume'] += trade.get('total', trade.get('total_cost', 0))
             
             # Calculate today's trades count
             today_str = datetime.datetime.now().strftime('%Y-%m-%d')
-            today_trades = self.get_trades_by_date(today_str)
-            summary['today_count'] = len(today_trades)
+            today_trades_file = get_daily_trades_file(today_str)
+            if os.path.exists(today_trades_file):
+                with open(today_trades_file, 'r', encoding='utf-8') as f:
+                    today_trades = json.load(f)
+                    summary['today_count'] = len(today_trades)
+            else:
+                summary['today_count'] = 0
             
             return summary
             
@@ -206,24 +190,7 @@ class DataManager:
             logging.exception("Full traceback for trades summary error:")
             return {}
     
-    def save_analytics(self, analytics_data: Dict) -> None:
-        """Analitik verilerini kaydeder."""
-        try:
-            timestamp = datetime.datetime.now()
-            date_str = timestamp.strftime('%Y-%m-%d')
-            
-            analytics_file = get_daily_analytics_file(date_str)
-            
-            with open(analytics_file, 'w', encoding='utf-8') as f:
-                json.dump(analytics_data, f, indent=2, ensure_ascii=False)
-            
-            logging.info(f"Analytics saved for {date_str}")
-            
-        except Exception as e:
-            logging.error(f"Error saving analytics: {e}")
-            logging.error(f"Analytics data that failed to save: {analytics_data}")
-            logging.error(f"Failed to save to file: {get_daily_analytics_file()}")
-            logging.exception("Full traceback for analytics saving error:")
+
 
 
 # Global instance

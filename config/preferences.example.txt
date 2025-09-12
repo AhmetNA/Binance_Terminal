@@ -11,6 +11,10 @@ hard_risk = 5%
 # Price volatility threshold (0.1-5%)
 accepted_price_volatility = 1%
 
+# Trading Settings
+# Order type for dynamic coin trades (MARKET or LIMIT)
+dynamic_coin_order_type = MARKET
+
 # Chart Settings
 # Chart interval in minutes (1, 5, 15, 30, 60)
 chart_interval = 1
