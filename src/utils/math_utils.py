@@ -23,26 +23,44 @@ def round_to_step_size(quantity: float, step_size: float) -> float:
         if step_size == 0:
             return quantity
         
+        # Step size'ın decimal sayısını daha hassas olarak hesapla
+        from decimal import Decimal, getcontext, ROUND_DOWN
+        getcontext().prec = 28
+        
+        # Decimal ile çalış precision kaybını önlemek için
+        dec_quantity = Decimal(str(quantity))
+        dec_step_size = Decimal(str(step_size))
+        
+        # Step size'a göre yuvarla (aşağı yuvarla)
+        factor = dec_quantity / dec_step_size
+        rounded_factor = factor.quantize(Decimal('1'), rounding=ROUND_DOWN)
+        rounded_quantity = rounded_factor * dec_step_size
+        
+        # Float'a çevir ama precision'ı koru
+        result = float(rounded_quantity)
+        
         # Step size'ın decimal sayısını bul
-        step_str = f"{step_size:.10f}".rstrip('0')
+        step_str = f"{step_size:.20f}".rstrip('0')
         if '.' in step_str:
             decimals = len(step_str.split('.')[1])
-        else:
-            decimals = 0
+            result = round(result, decimals)
         
-        # Quantity'yi step size'a göre yuvarla
-        factor = 1 / step_size
-        rounded_quantity = math.floor(quantity * factor) / factor
-        
-        # Decimal precision'ı ayarla
-        rounded_quantity = round(rounded_quantity, decimals)
-        
-        logging.debug(f"Rounded {quantity} to {rounded_quantity} (step: {step_size})")
-        return rounded_quantity
+        logging.debug(f"Rounded {quantity} to {result} (step: {step_size}, decimals: {decimals if '.' in step_str else 0})")
+        return result
         
     except Exception as e:
         logging.error(f"Error rounding quantity {quantity} with step {step_size}: {e}")
-        return quantity
+        # Fallback to old method
+        try:
+            factor = 1 / step_size
+            rounded_quantity = math.floor(quantity * factor) / factor
+            step_str = f"{step_size:.10f}".rstrip('0')
+            if '.' in step_str:
+                decimals = len(step_str.split('.')[1])
+                rounded_quantity = round(rounded_quantity, decimals)
+            return rounded_quantity
+        except:
+            return quantity
 
 
 def calculate_percentage(value: float, total: float) -> float:

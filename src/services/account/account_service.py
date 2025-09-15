@@ -7,13 +7,7 @@ import logging
 import os
 import sys
 
-# Import centralized paths and client service
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-try:
-    from .client_service import prepare_client
-except ImportError:
-    from client_service import prepare_client
+from services.client import prepare_client
 
 
 def get_account_data(client=None):

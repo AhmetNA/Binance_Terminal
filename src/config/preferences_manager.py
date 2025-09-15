@@ -9,8 +9,6 @@ import logging
 import os
 import sys
 
-# Import centralized paths
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.paths import PREFERENCES_FILE
 
 # Module-level cache for preferences
@@ -167,8 +165,8 @@ def _load_risk_type_once():
 
 def get_buy_preferences():
     """
-    @brief Returns cached preferences - super fast!
-    @return tuple: A tuple containing soft risk and hard risk percentages.
+    @brief Returns cached preferences as a dictionary - super fast!
+    @return dict: A dictionary containing preference values
     """
     global _CACHED_PREFERENCES
     
@@ -176,7 +174,19 @@ def get_buy_preferences():
     if _CACHED_PREFERENCES is None:
         _CACHED_PREFERENCES = _load_preferences_once()
     
-    return _CACHED_PREFERENCES
+    # Convert tuple to dictionary for backwards compatibility
+    soft_risk, hard_risk = _CACHED_PREFERENCES
+    
+    # Get risk type to determine the format
+    risk_type = get_risk_type()
+    
+    return {
+        'soft_percentage': soft_risk if risk_type == "PERCENTAGE" else soft_risk / 100 if risk_type == "USDT" and soft_risk > 1 else soft_risk,
+        'hard_percentage': hard_risk if risk_type == "PERCENTAGE" else hard_risk / 100 if risk_type == "USDT" and hard_risk > 1 else hard_risk,
+        'soft_usdt': soft_risk if risk_type == "USDT" else soft_risk * 100,
+        'hard_usdt': hard_risk if risk_type == "USDT" else hard_risk * 100,
+        'risk_type': risk_type
+    }
 
 
 def get_order_type():

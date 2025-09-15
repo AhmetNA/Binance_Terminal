@@ -126,6 +126,7 @@ class MarketBuyOrder(BaseOrder):
         @return Order detayları
         """
         try:
+            # Lazy import to avoid circular dependency
             from services.orders.order_service import place_BUY_order
             from config.preferences_manager import get_risk_type
             
@@ -175,6 +176,7 @@ class MarketSellOrder(BaseOrder):
         @return Order detayları
         """
         try:
+            # Lazy import to avoid circular dependency
             from services.orders.order_service import place_SELL_order
             from config.preferences_manager import get_risk_type
             
@@ -228,6 +230,7 @@ class LimitBuyOrder(BaseOrder):
         @return Order detayları
         """
         try:
+            # Lazy import to avoid circular dependency
             from services.orders.limit_order_service import place_limit_buy_order
             from config.preferences_manager import get_risk_type
             
@@ -288,6 +291,7 @@ class LimitSellOrder(BaseOrder):
         @return Order detayları
         """
         try:
+            # Lazy import to avoid circular dependency
             from services.orders.limit_order_service import place_limit_sell_order
             from config.preferences_manager import get_risk_type
             

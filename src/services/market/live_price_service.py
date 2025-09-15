@@ -21,14 +21,11 @@ import os
 import logging
 import sys
 
-# Add src to path for core imports (optimized)
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from core.globals import pending_subscriptions, USDT, TICKER_SUFFIX, RECONNECT_DELAY, COINS_KEY, DYNAMIC_COIN_KEY
 from core.paths import MAIN_LOG_FILE
 
 # Import utility functions
-from utils.symbol_utils import (
+from utils.symbols import (
     validate_symbol_for_binance,
     validate_symbol_simple,
     validate_and_format_symbol,
@@ -37,7 +34,7 @@ from utils.symbol_utils import (
     validate_coin_before_setting,
     view_coin_format
 )
-from utils.data_utils import (
+from utils.data import (
     load_fav_coins,
     write_favorite_coins_to_json,
     load_user_preferences

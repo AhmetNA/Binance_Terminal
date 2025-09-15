@@ -8,19 +8,9 @@ import os
 import sys
 from typing import Dict, Any
 
-# Import centralized paths
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-try:
-    from ..client_service import prepare_client
-    from ..account_service import retrieve_usdt_balance, get_amountOf_asset
-    from utils.trading_utils import get_price, get_symbol_info, calculate_buy_quantity, calculate_sell_quantity
-except ImportError:
-    # Fallback for direct execution
-    from services.client_service import prepare_client
-    from services.account_service import retrieve_usdt_balance, get_amountOf_asset
-    from utils.trading_utils import get_price, get_symbol_info, calculate_buy_quantity, calculate_sell_quantity
-
+from services.client import prepare_client
+from services.account import retrieve_usdt_balance, get_amountOf_asset
+from utils.trading import get_price, get_symbol_info, calculate_buy_quantity, calculate_sell_quantity
 from models.order_types import OrderSide, OrderType, OrderParameters
 
 

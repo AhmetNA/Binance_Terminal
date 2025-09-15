@@ -1,13 +1,12 @@
 import requests
 import os
 import sys
-
-# Add path for imports
-current_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.dirname(os.path.dirname(current_dir))
-sys.path.append(src_dir)
+import pandas as pd
+import logging
 
 from core.paths import PREFERENCES_FILE
+from services.client import prepare_client
+from services.account import get_coin_wallet_info, format_wallet_display_text
 
 """
 This module retrieves and formats candlestick data from the Binance API.
@@ -25,8 +24,9 @@ Functions:
     get_chart_data(symbol="BTCUSDT"):
         Orchestrates the process by first fetching the raw candle data and then formatting it.
         It raises a ValueError if the API response is not in the expected format.
+    get_wallet_info_for_chart(symbol):
+        Gets wallet balance information for display in chart.
 """
-import pandas as pd
 
 
 def fetch_candles(symbol="BTCUSDT", interval="1m", limit=50):
@@ -109,3 +109,72 @@ def get_chart_data(symbol="BTCUSDT"):
         raise ValueError("Unexpected data format received from the API.")
     df = format_candle_data(candles)
     return df
+
+
+def get_wallet_info_for_chart(symbol):
+    """
+    Chart için wallet bilgilerini getirir.
+    Client bağlantısı varsa wallet bilgilerini döndürür, yoksa None.
+    
+    Args:
+        symbol (str): Coin symbol (örn: BTCUSDT)
+        
+    Returns:
+        dict or None: Wallet bilgileri veya None (client bağlantısı yoksa)
+    """
+    try:
+        # Client'ı kontrol et
+        client = prepare_client()
+        if client is None:
+            return None
+            
+        # Wallet bilgilerini al
+        wallet_info = get_coin_wallet_info(symbol, client)
+        
+        # Error varsa None döndür
+        if 'error' in wallet_info:
+            logging.warning(f"Wallet info error for {symbol}: {wallet_info['error']}")
+            return None
+            
+        return wallet_info
+        
+    except Exception as e:
+        logging.error(f"Error getting wallet info for chart {symbol}: {e}")
+        return None
+
+
+def format_chart_wallet_text(wallet_info):
+    """
+    Chart için wallet bilgilerini formatlar.
+    
+    Args:
+        wallet_info (dict): Wallet bilgileri
+        
+    Returns:
+        str: Chart'ta gösterilecek formatlanmış text
+    """
+    if wallet_info is None:
+        return "WALLET\n✗ No connection"
+    
+    if 'error' in wallet_info:
+        return "WALLET\n⚠ Error loading"
+    
+    coin_symbol = wallet_info['coin_symbol']
+    amount = wallet_info['amount']
+    usdt_value = wallet_info['usdt_value']
+    
+    if amount == 0:
+        return f"WALLET\n○ 0 {coin_symbol}"
+    
+    # Format numbers for better readability in chart
+    if amount >= 1:
+        amount_str = f"{amount:.4f}".rstrip('0').rstrip('.')
+    else:
+        amount_str = f"{amount:.6f}".rstrip('0').rstrip('.')
+    
+    if usdt_value >= 1:
+        usdt_str = f"{usdt_value:.2f}"
+    else:
+        usdt_str = f"{usdt_value:.4f}".rstrip('0').rstrip('.')
+    
+    return f"♦ WALLET ASSET ♦\n▪ {amount_str} {coin_symbol}\n$ {usdt_str} USDT"

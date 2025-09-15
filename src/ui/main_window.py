@@ -10,21 +10,16 @@ import os
 import logging
 import threading
 
-# Add project paths
-current_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.dirname(os.path.dirname(current_dir))
-sys.path.append(src_dir)
-
 # Import centralized paths
 from core.paths import FAV_COINS_FILE, BTC_ICON_FILE, FAVORITE_COIN_COUNT, DYNAMIC_COIN_INDEX
 
 # Import services
-from services.client_service import prepare_client
-from services.account_service import retrieve_usdt_balance
+from services.client import prepare_client
+from services.account import retrieve_usdt_balance
 from services.orders.order_service import make_order
-from utils.data_utils import load_fav_coins
-from utils.symbol_utils import view_coin_format
-from services.live_price_service import (
+from utils.data import load_fav_coins
+from utils.symbols import view_coin_format
+from services.market import (
     set_dynamic_coin_symbol,
     start_price_websocket, 
     subscribe_to_dynamic_coin
@@ -35,7 +30,7 @@ from ui.components import (
     FavoriteCoinPanel, DynamicCoinPanel, WalletPanel, 
     CoinEntryPanel, TerminalWidget
 )
-from ui.components.chart_widget import get_chart_data
+from ui.components.chart_widget import get_chart_data, get_wallet_info_for_chart, format_chart_wallet_text
 from ui.dialogs.settings_dialog import SettingsDialog
 
 # Chart imports
@@ -355,7 +350,23 @@ class MainWindow(QMainWindow):
                 self.terminal_widget.append_message(fallback_msg)
             
         except Exception as e:
-            error_msg = f"Error processing {operation_type} for coin {coin_index}: {e}"
+            # Get coin symbol for better error message
+            try:
+                symbol = self._retrieve_coin_symbol(coin_index)
+                coin_name = symbol.replace('USDT', '') if symbol else f"coin {coin_index}"
+                
+                # Convert operation type to user-friendly format
+                friendly_operation = {
+                    'Soft_Buy': 'Buy',
+                    'Hard_Buy': 'Buy',
+                    'Soft_Sell': 'Sell', 
+                    'Hard_Sell': 'Sell'
+                }.get(operation_type, operation_type)
+                
+                error_msg = f"❌ {friendly_operation} order failed for {coin_name}: {e}"
+            except:
+                error_msg = f"❌ Order failed for coin {coin_index}: {e}"
+            
             self.terminal_widget.append_message(error_msg)
             logging.error(error_msg)
             
@@ -419,13 +430,30 @@ class MainWindow(QMainWindow):
             fig.suptitle(f"{symbol} ({interval}m) Candle Chart", fontsize=12)
             fig.set_size_inches(6, 4)
 
-            # Add general info box with price details
-            info_text = (f"First Price: {first_price:.2f}\n"
-                        f"Last Price: {last_price:.2f}\n"
-                        f"Overall Change: {price_change_pct:.2f}%")
-            props = dict(boxstyle='round', facecolor='gray', alpha=0.5)
-            ax.text(0.02, 0.98, info_text, transform=ax.transAxes, fontsize=8,
-                   verticalalignment='top', bbox=props)
+            # Add price info box (top-left)
+            price_info_text = (f"First Price: {first_price:.2f}\n"
+                              f"Last Price: {last_price:.2f}\n"
+                              f"Overall Change: {price_change_pct:.2f}%")
+            price_props = dict(boxstyle='round', facecolor='gray', alpha=0.5)
+            ax.text(0.02, 0.98, price_info_text, transform=ax.transAxes, fontsize=8,
+                   verticalalignment='top', bbox=price_props)
+
+            # Get wallet information for the coin
+            wallet_info = get_wallet_info_for_chart(symbol)
+            wallet_text = format_chart_wallet_text(wallet_info)
+
+            # Add wallet info box (top-right) with wallet-themed styling
+            # Use green tones for wallet/money theme with better visibility
+            wallet_props = dict(
+                boxstyle='round,pad=0.5', 
+                facecolor='#2E8B57',  # Sea green for wallet theme
+                edgecolor='#90EE90',  # Light green border
+                linewidth=2,
+                alpha=0.85
+            )
+            ax.text(0.98, 0.98, wallet_text, transform=ax.transAxes, fontsize=10,
+                   verticalalignment='top', horizontalalignment='right', 
+                   bbox=wallet_props, color='white', weight='bold')
 
             plt.show()
             
@@ -657,7 +685,7 @@ class MainWindow(QMainWindow):
         try:
             logging.debug("Syncing preferences to fav_coins.json...")
             # This will trigger the sync process
-            from utils.data_utils import load_user_preferences
+            from utils.data import load_user_preferences
             symbols = load_user_preferences()
             logging.debug(f"✅ Synced preferences to fav_coins.json - Found {len(symbols)} symbols: {symbols}")
         except Exception as e:
@@ -673,7 +701,7 @@ class MainWindow(QMainWindow):
                 self.terminal_widget.append_message("🔄 Stopping old websocket connections...")
             
             # Websocket'i tamamen restart et
-            from services.live_price_service import restart_websocket_with_new_symbols
+            from services.market import restart_websocket_with_new_symbols
             restart_websocket_with_new_symbols()
             
             logging.info("✅ WebSocket fully restarted with new favorite symbols")
@@ -682,7 +710,7 @@ class MainWindow(QMainWindow):
             logging.warning("Could not import restart_websocket_with_new_symbols from live_price_service")
             # Fallback to reload_symbols if available
             try:
-                from services.live_price_service import reload_symbols
+                from services.market import reload_symbols
                 reload_symbols()
                 logging.info("✅ Fallback: WebSocket symbols reloaded")
             except ImportError:
@@ -808,7 +836,7 @@ def initialize_gui():
         # Create main window
         logging.info("Creating modular main window...")
         window = MainWindow(client)
-        window.setWindowTitle("Binance Terminal - Modular Architecture")
+        window.setWindowTitle("Binance-Terminal")
         
         # Show window
         logging.info("Showing modular main window...")

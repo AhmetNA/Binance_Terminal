@@ -11,23 +11,19 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QIntValidator, QDoubleValidator
 
-from ..styles.button_styles import SAVE_BUTTON_STYLE
-from ..styles.panel_styles import (
+from ui.styles.button_styles import SAVE_BUTTON_STYLE
+from ui.styles.panel_styles import (
     SETTINGS_DIALOG_STYLE, SETTINGS_LABEL_STYLE, SETTINGS_INPUT_STYLE
 )
 
-# Import required modules
 import sys
 import os
-current_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.dirname(os.path.dirname(current_dir))
-sys.path.append(src_dir)
+import json
 
 from core.paths import PREFERENCES_FILE
 from config.preferences_service import set_preference, update_favorite_coin
-from services.live_price_service import set_dynamic_coin_symbol, subscribe_to_dynamic_coin
-from utils.symbol_utils import process_user_coin_input
-import json
+from services.market import set_dynamic_coin_symbol, subscribe_to_dynamic_coin
+from utils.symbols import process_user_coin_input
 
 
 class SettingsDialog(QDialog):
@@ -862,7 +858,7 @@ class SettingsDialog(QDialog):
         """Update favorite coins using efficient method similar to submit button."""
         try:
             # Import here to avoid circular imports
-            from utils.data_utils import load_fav_coins, write_favorite_coins_to_json
+            from utils.data import load_fav_coins, write_favorite_coins_to_json
             
             validated_coins = []
             

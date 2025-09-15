@@ -7,18 +7,7 @@ import logging
 import sys
 import os
 
-# Add src to path for core imports (optimized)
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-try:
-    from core.globals import TICKER_SUFFIX
-except ImportError:
-    # Fallback if running from different context
-    try:
-        from src.core.globals import TICKER_SUFFIX
-    except ImportError:
-        # Define locally if core module is not available
-        TICKER_SUFFIX = "@ticker"
+from core.globals import TICKER_SUFFIX
 
 
 def format_binance_ticker_symbols(symbols):

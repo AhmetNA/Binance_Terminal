@@ -5,8 +5,6 @@ from typing import Dict, List, Optional
 import logging
 import sys
 
-# Import centralized paths
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.paths import (
     PROJECT_ROOT, DATA_DIR, TRADES_DIR, PORTFOLIO_DIR, ANALYTICS_DIR,
     LATEST_PORTFOLIO_FILE, get_daily_trades_file, get_daily_portfolio_file,

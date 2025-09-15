@@ -6,21 +6,14 @@ Manages the dynamic coin trading operations and display.
 from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QPushButton
 from PySide6.QtCore import Qt, Signal
 
-from .base_component import BaseComponent
-from ..styles.button_styles import (
+from ui.components.base_component import BaseComponent
+from ui.styles.button_styles import (
     DYN_HARD_BUY_STYLE, DYN_SOFT_BUY_STYLE, DYN_SOFT_SELL_STYLE,
     DYN_HARD_SELL_STYLE, DYN_COIN_LABEL_STYLE
 )
-from ..styles.panel_styles import (
+from ui.styles.panel_styles import (
     DYNAMIC_COIN_PANEL_STYLE, PanelSizes, LayoutSpacing
 )
-
-# Import constants from core paths
-import sys
-import os
-current_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.dirname(os.path.dirname(current_dir))
-sys.path.append(src_dir)
 
 from core.paths import DYNAMIC_COIN_INDEX
 

@@ -2,12 +2,6 @@ import logging
 import os
 import sys
 
-# Add path for imports
-current_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.dirname(current_dir)
-sys.path.append(src_dir)
-
-# Import centralized paths
 from core.paths import PREFERENCES_FILE
 
 # Magic strings
@@ -208,14 +202,21 @@ def set_preference(key: str, new_value: str) -> str:
             f.writelines(new_lines)
         logging.info(f"Successfully saved preference {key} to file: {PREFERENCES_FILE}")
         
-        # 🔄 CACHE RELOAD: Risk preferences veya order type değiştiyse cache'i temizle
-        if key in ['soft_risk', 'hard_risk', 'order_type']:
+        # 🔄 CACHE RELOAD: Risk preferences, order type veya diğer cache edilmiş ayarlar değiştiyse cache'i temizle
+        cache_dependent_keys = [
+            'soft_risk', 'hard_risk', 'order_type', 'risk_type',
+            'soft_risk_percentage', 'hard_risk_percentage', 
+            'soft_risk_by_usdt', 'hard_risk_by_usdt',
+            'accepted_price_volatility', 'chart_interval'
+        ]
+        
+        if key in cache_dependent_keys:
             try:
                 from config.preferences_manager import force_preferences_reload
                 new_prefs = force_preferences_reload()
-                logging.info(f"✅ Preferences cache reloaded: {new_prefs}")
+                logging.info(f"✅ Preferences cache reloaded for {key}: {new_prefs}")
             except Exception as cache_error:
-                logging.warning(f"Could not reload preferences cache: {cache_error}")
+                logging.warning(f"Could not reload preferences cache for {key}: {cache_error}")
         
     except Exception as e:
         logging.exception(f"Error writing preferences file: {e}")

@@ -93,7 +93,7 @@ def main():
         
         # Save any cached price data before exit
         try:
-            from services.live_price_service import force_save_prices
+            from services.market import force_save_prices
             force_save_prices()
             logger.debug("Saved cached price data before exit")
         except Exception as e:

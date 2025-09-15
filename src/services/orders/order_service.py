@@ -8,25 +8,22 @@ import logging
 import os
 import sys
 
-# Import centralized paths
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from services.client import prepare_client, force_client_reload, get_cached_client_info
+from config.preferences_manager import get_buy_preferences, force_preferences_reload, get_order_type
+from services.account import retrieve_usdt_balance, get_amountOf_asset
+from utils.trading import get_price, get_symbol_info, calculate_buy_quantity, calculate_sell_quantity, format_quantity_for_binance
+from services.orders.order_type_manager import get_effective_order_type
+from utils.order_utils import handle_binance_api_error, extract_order_info, log_order_execution
+from core.trading_operations import (
+    validate_amount_type, convert_usdt_to_percentage, convert_percentage_to_usdt,
+    log_order_amount, OrderExecutionContext, prepare_trade_data, TradeDirection
+)
 
-try:
-    from ..client_service import prepare_client, force_client_reload, get_cached_client_info
-    from config.preferences_manager import get_buy_preferences, force_preferences_reload, get_order_type
-    from ..account_service import retrieve_usdt_balance, get_amountOf_asset
-    from utils.trading_utils import get_price, get_symbol_info, calculate_buy_quantity, calculate_sell_quantity
-    from .order_type_manager import get_effective_order_type
-except ImportError:
-    # Fallback for direct execution
-    from services.client_service import prepare_client, force_client_reload, get_cached_client_info
-    from config.preferences_manager import get_buy_preferences, force_preferences_reload, get_order_type
-    from services.account_service import retrieve_usdt_balance, get_amountOf_asset
-    from utils.trading_utils import get_price, get_symbol_info, calculate_buy_quantity, calculate_sell_quantity
-    from services.orders.order_type_manager import get_effective_order_type
-
-# Import order types from models
-from models.order_types import OrderManager, OrderFactory, RiskLevel, OrderSide, OrderType, OrderParameters
+# Order type constants to avoid circular dependencies
+MARKET_ORDER = "MARKET"
+LIMIT_ORDER = "LIMIT"
+BUY_SIDE = "BUY"
+SELL_SIDE = "SELL"
 
 
 def validate_amount_type(amount_type):
@@ -87,10 +84,10 @@ def log_order_amount(amount_or_percentage, amount_type, balance=None):
 
 def place_order(client, symbol, side, amount_or_percentage, amount_type='percentage'):
     """
-    @brief Market order yerleştirir (buy veya sell) - Model sınıflarını kullanır.
+    @brief Market order yerleştirir (buy veya sell) - Refactored to avoid circular dependencies.
     @param client: Binance API client
     @param symbol: Trading pair symbol
-    @param side: 'BUY' veya 'SELL' (OrderSide enum de kullanılabilir)
+    @param side: 'BUY' veya 'SELL' string
     @param amount_or_percentage: İşlem miktarı (USDT amount veya percentage 0.0-1.0)
     @param amount_type: 'usdt' veya 'percentage' - hangi tip miktar olduğunu belirtir
     @return dict: Order detayları
@@ -98,19 +95,8 @@ def place_order(client, symbol, side, amount_or_percentage, amount_type='percent
     try:
         from data.data_manager import data_manager
         
-        # Amount type validasyonu
-        if not validate_amount_type(amount_type):
-            raise ValueError(f"Invalid amount_type: {amount_type}. Must be 'usdt' or 'percentage'")
-        
-        # Validate amount_or_percentage is a number
-        if not isinstance(amount_or_percentage, (int, float)):
-            raise TypeError(f"amount_or_percentage must be a number, got {type(amount_or_percentage).__name__}: {amount_or_percentage}")
-        
-        # String'i OrderSide enum'a çevir
-        if isinstance(side, str):
-            order_side = OrderSide.BUY if side.upper() == 'BUY' else OrderSide.SELL
-        else:
-            order_side = side
+        # Create execution context for validation
+        context = OrderExecutionContext(symbol, side, amount_or_percentage, amount_type, MARKET_ORDER)
         
         # Amount type kontrolü ve loglama
         if amount_type.lower() == 'usdt':
@@ -120,28 +106,11 @@ def place_order(client, symbol, side, amount_or_percentage, amount_type='percent
             percentage = float(amount_or_percentage)
             logging.info(f"📊 Order percentage: {percentage*100:.2f}%")
         
-        # OrderParameters objesi oluştur
-        if amount_type.lower() == 'percentage':
-            order_params = OrderParameters(
-                symbol=symbol,
-                side=order_side,
-                percentage=amount_or_percentage,
-                order_type=OrderType.MARKET
-            )
-        else:
-            # USDT amount için percentage hesapla
-            order_params = OrderParameters(
-                symbol=symbol,
-                side=order_side,
-                percentage=amount_or_percentage,  # Temporary, will be recalculated
-                order_type=OrderType.MARKET
-            )
-        
         # Genel bilgileri al
-        current_price = get_price(client, order_params.symbol)
-        symbol_info = get_symbol_info(client, order_params.symbol)
+        current_price = get_price(client, context.symbol)
+        symbol_info = get_symbol_info(client, context.symbol)
         
-        if order_params.side == OrderSide.BUY:
+        if context.side == BUY_SIDE:
             # BUY işlemi için USDT balance al
             usdt_balance = retrieve_usdt_balance(client)
             logging.info(f"💼 Current USDT balance: ${usdt_balance:.2f}")
@@ -158,29 +127,28 @@ def place_order(client, symbol, side, amount_or_percentage, amount_type='percent
             
             quantity = calculate_buy_quantity(usdt_to_spend, current_price, symbol_info)
             
-            logging.info(f"🔄 Placing {order_params.side.value} order: {quantity} {order_params.symbol} at ${current_price}")
-            order = client.order_market_buy(symbol=order_params.symbol, quantity=quantity)
+            logging.info(f"🔄 Placing {context.side} order: {quantity} {context.symbol} at ${current_price}")
+            order = client.order_market_buy(symbol=context.symbol, quantity=format_quantity_for_binance(quantity))
             
             # Trade data hazırla
-            trade_data = {
-                'timestamp': order.get('transactTime'),
-                'symbol': order_params.symbol,
-                'side': order_params.side.value,
-                'type': f'${usdt_to_spend:.2f}_Buy' if amount_type.lower() == 'usdt' else f'{percentage*100:.0f}%_Buy',
-                'quantity': quantity,
-                'price': current_price,
-                'total_cost': usdt_to_spend,
-                'wallet_before': usdt_balance,
-                'wallet_after': usdt_balance - usdt_to_spend,
-                'order_id': order.get('orderId'),
-                'order_type': order_params.order_type.value,
-                'amount_type': amount_type,
-                'input_amount': amount_or_percentage
-            }
+            trade_data = prepare_trade_data(
+                symbol=context.symbol,
+                side=context.side,
+                order_type=MARKET_ORDER,
+                quantity=quantity,
+                price=current_price,
+                total_cost=usdt_to_spend,
+                order_id=order.get('orderId', 'unknown'),
+                amount_type=amount_type,
+                input_amount=amount_or_percentage,
+                wallet_before=usdt_balance,
+                wallet_after=usdt_balance - usdt_to_spend,
+                timestamp=order.get('transactTime')
+            )
             
-        elif order_params.side == OrderSide.SELL:
+        elif context.side == SELL_SIDE:
             # SELL işlemi için asset amount al
-            asset_amount = get_amountOf_asset(client, order_params.symbol)
+            asset_amount = get_amountOf_asset(client, context.symbol)
             logging.info(f"💼 Current {symbol} balance: {asset_amount}")
             
             if amount_type.lower() == 'usdt':
@@ -196,50 +164,57 @@ def place_order(client, symbol, side, amount_or_percentage, amount_type='percent
             
             quantity = calculate_sell_quantity(quantity_to_sell, symbol_info)
             
-            logging.info(f"🔄 Placing {order_params.side.value} order: {quantity} {order_params.symbol} at ${current_price}")
-            order = client.order_market_sell(symbol=order_params.symbol, quantity=quantity)
+            logging.info(f"🔄 Placing {context.side} order: {quantity} {context.symbol} at ${current_price}")
+            order = client.order_market_sell(symbol=context.symbol, quantity=format_quantity_for_binance(quantity))
             
             # Trade data hazırla
-            total_usdt = quantity * current_price
-            trade_data = {
-                'timestamp': order.get('transactTime'),
-                'symbol': order_params.symbol,
-                'side': order_params.side.value,
-                'type': f'${usdt_amount:.2f}_Sell' if amount_type.lower() == 'usdt' else f'{percentage*100:.0f}%_Sell',
-                'quantity': quantity,
-                'price': current_price,
-                'total_cost': total_usdt,
-                'wallet_before': asset_amount,
-                'wallet_after': asset_amount - quantity,
-                'order_id': order.get('orderId'),
-                'order_type': order_params.order_type.value,
-                'amount_type': amount_type,
-                'input_amount': amount_or_percentage
-            }
+            total_usdt = float(quantity) * current_price
+            trade_data = prepare_trade_data(
+                symbol=context.symbol,
+                side=context.side,
+                order_type=MARKET_ORDER,
+                quantity=quantity,
+                price=current_price,
+                total_cost=total_usdt,
+                order_id=order.get('orderId', 'unknown'),
+                amount_type=amount_type,
+                input_amount=amount_or_percentage,
+                wallet_before=asset_amount,
+                wallet_after=asset_amount - float(quantity),
+                timestamp=order.get('transactTime')
+            )
         else:
-            raise ValueError(f"Invalid order side: {order_params.side}. Must be OrderSide.BUY or OrderSide.SELL")
+            raise ValueError(f"Invalid order side: {context.side}. Must be 'BUY' or 'SELL'")
         
         # Trade data kaydet
         data_manager.save_trade(trade_data)
         
         # Comprehensive logging
-        logging.info(f"✅ {order_params.side.value} order completed successfully:")
-        logging.info(f"   📈 Symbol: {order_params.symbol}")
-        logging.info(f"   💰 Quantity: {trade_data['quantity']}")
-        logging.info(f"   💵 Price: ${trade_data['price']:.6f}")
-        logging.info(f"   💎 Total Cost: ${trade_data['total_cost']:.2f}")
-        logging.info(f"   🔢 Order ID: {trade_data['order_id']}")
-        logging.info(f"   📊 Amount Type: {trade_data['amount_type']}")
-        logging.info(f"   🎯 Input Amount: {trade_data['input_amount']}")
+        log_order_execution(
+            operation=f"{context.side} Order",
+            symbol=context.symbol,
+            quantity=trade_data['quantity'],
+            price=trade_data['price'],
+            order_type=MARKET_ORDER,
+            order_id=trade_data['order_id']
+        )
         
         return order
         
     except Exception as e:
-        error_msg = f"❌ {order_side.value if 'order_side' in locals() else side} order error for {symbol}: {e}"
+        # Binance API hatalarını kullanıcı dostu mesajlara çevir
+        error_msg = handle_binance_api_error(e, symbol, f"{side} Order")
+        
+        # Kullanıcıya görünen mesaj
         print(error_msg)
-        logging.error(error_msg)
-        logging.exception(f"Full traceback for {order_side.value if 'order_side' in locals() else side} order error:")
-        raise
+        
+        # Log'a teknik detayları yaz
+        logging.error(f"❌ Technical details - {side} order failed for {symbol}")
+        logging.error(f"Full API error details: {e}")
+        logging.exception("Full traceback for order error:")
+        
+        # Kullanıcı dostu hata mesajıyla yeniden fırlat
+        raise ValueError(error_msg) from e
 
 
 def place_BUY_order(client, SYMBOL, amount_or_percentage, amount_type='percentage'):
@@ -250,7 +225,7 @@ def place_BUY_order(client, SYMBOL, amount_or_percentage, amount_type='percentag
     @param amount_or_percentage: USDT amount or percentage (0.0-1.0)
     @param amount_type: 'usdt' or 'percentage'
     """
-    return place_order(client, SYMBOL, OrderSide.BUY, amount_or_percentage, amount_type)
+    return place_order(client, SYMBOL, BUY_SIDE, amount_or_percentage, amount_type)
 
 
 def place_SELL_order(client, SYMBOL, amount_or_percentage, amount_type='percentage'):
@@ -261,7 +236,7 @@ def place_SELL_order(client, SYMBOL, amount_or_percentage, amount_type='percenta
     @param amount_or_percentage: USDT amount or percentage (0.0-1.0)
     @param amount_type: 'usdt' or 'percentage'
     """
-    return place_order(client, SYMBOL, OrderSide.SELL, amount_or_percentage, amount_type)
+    return place_order(client, SYMBOL, SELL_SIDE, amount_or_percentage, amount_type)
 
 
 def execute_order(order_type: str, symbol: str, client=None, order_execution_type=None, limit_price=None, 
@@ -311,15 +286,13 @@ def execute_order(order_type: str, symbol: str, client=None, order_execution_typ
         logging.info(f"📋 Using default amount from preferences")
     
     try:
-        order_manager = OrderManager(client, risk_preferences, terminal_callback)
-        
-        # Order execution type validasyonu
-        if not order_manager.validate_execution_type(order_execution_type):
-            available_types = order_manager.get_available_execution_types()
-            raise ValueError(f"Geçersiz order execution type: {order_execution_type}. Geçerli değerler: {available_types}")
+        # Validate order execution type
+        valid_execution_types = ["MARKET", "LIMIT"]
+        if order_execution_type.upper() not in valid_execution_types:
+            raise ValueError(f"Geçersiz order execution type: {order_execution_type}. Geçerli değerler: {valid_execution_types}")
         
         # Limit order için fiyat kontrolü veya otomatik hesaplama
-        if order_execution_type == "LIMIT" and limit_price is None:
+        if order_execution_type.upper() == "LIMIT" and limit_price is None:
             # Limit price otomatik hesaplanır
             current_price = get_price(client, symbol)
             if "Buy" in order_type:
@@ -333,23 +306,64 @@ def execute_order(order_type: str, symbol: str, client=None, order_execution_typ
         
         logging.info(f"🔄 Executing {order_type} order for {symbol} with {order_execution_type} type")
         
-        # Amount parametresini order_manager'a gönder
+        # Determine side from order_type
+        side = BUY_SIDE if "Buy" in order_type else SELL_SIDE
+        
+        # Use amount from parameters or fall back to preferences
         if amount_or_percentage is not None:
-            order_result = order_manager.execute_order(order_type, symbol, order_execution_type, limit_price, 
-                                                     amount_or_percentage, amount_type)
+            final_amount = amount_or_percentage
+            final_amount_type = amount_type
         else:
-            order_result = order_manager.execute_order(order_type, symbol, order_execution_type, limit_price)
+            # Get amount from preferences based on risk type
+            risk_type = risk_preferences.get('risk_type', 'percentage')
+            if risk_type.lower() == 'percentage':
+                final_amount_type = 'percentage'
+                # Map order type to risk percentage
+                if "Hard" in order_type:
+                    final_amount = risk_preferences.get('hard_percentage', 0.5)
+                else:  # Soft
+                    final_amount = risk_preferences.get('soft_percentage', 0.1)
+            else:  # USDT
+                final_amount_type = 'usdt'
+                if "Hard" in order_type:
+                    final_amount = risk_preferences.get('hard_usdt', 100.0)
+                else:  # Soft
+                    final_amount = risk_preferences.get('soft_usdt', 20.0)
+        
+        # Execute the order based on type
+        if order_execution_type.upper() == "MARKET":
+            order_result = place_order(client, symbol, side, final_amount, final_amount_type)
+        else:  # LIMIT
+            # Use limit order service for LIMIT orders
+            from services.orders.limit_order_service import place_limit_buy_order, place_limit_sell_order
+            
+            if side == BUY_SIDE:
+                order_result = place_limit_buy_order(symbol, final_amount, final_amount_type, limit_price, None, None)
+            else:
+                order_result = place_limit_sell_order(symbol, final_amount, final_amount_type, limit_price)
         
         logging.info(f"✅ {order_type} order completed for {symbol}")
         
         return order_result
         
     except Exception as e:
-        error_msg = f"❌ {order_type} order hatası - {symbol}: {e}"
+        # Binance API hatalarını kullanıcı dostu mesajlara çevir
+        error_msg = handle_binance_api_error(e, symbol, f"{order_type} Order")
+        
+        # Kullanıcıya görünen mesaj
         print(error_msg)
-        logging.error(f"Error in execute_order: {error_msg}")
+        
+        # Log'a teknik detayları yaz
+        logging.error(f"❌ Technical details - {order_type} order failed for {symbol}")
+        logging.error(f"Full API error details: {e}")
         logging.exception("Full traceback for order execution error:")
-        raise
+        
+        # Terminal callback varsa kullanıcı dostu mesaj gönder
+        if terminal_callback:
+            terminal_callback(error_msg)
+        
+        # Kullanıcı dostu hata mesajıyla yeniden fırlat
+        raise ValueError(error_msg) from e
 
 
 
@@ -456,15 +470,26 @@ def make_order(Style, Symbol, order_type=None, limit_price=None, amount_or_perce
         return order
         
     except Exception as e:
-        print(f"❌ TRADING İŞLEMİ HATASI: {e}")
-        print(f"Emir tipi: {Style}, Sembol: {Symbol}, Order Type: {order_type}")
-        if amount_or_percentage is not None:
-            print(f"Amount: {amount_or_percentage} ({amount_type})")
-        logging.error(f"Error in make_order: {e}")
+        # Binance API hatalarını kullanıcı dostu mesajlara çevir
+        error_msg = handle_binance_api_error(e, Symbol, f"{Style} Order")
+        
+        # Kullanıcıya görünen mesaj
+        print(error_msg)
+        print(f"Emir detayları: {Style} {Symbol} - {order_type} ({amount_or_percentage} {amount_type})")
+        
+        # Log'a teknik detayları yaz
+        logging.error(f"❌ Technical details - {Style} order failed for {Symbol}")
         logging.error(f"Order parameters: Style={Style}, Symbol={Symbol}, order_type={order_type}, limit_price={limit_price}")
         logging.error(f"Amount parameters: amount_or_percentage={amount_or_percentage}, amount_type={amount_type}")
+        logging.error(f"Full API error details: {e}")
         logging.exception("Full traceback for make_order error:")
-        raise
+        
+        # Terminal callback varsa kullanıcı dostu mesaj gönder
+        if terminal_callback:
+            terminal_callback(error_msg)
+        
+        # Kullanıcı dostu hata mesajıyla yeniden fırlat
+        raise ValueError(error_msg) from e
 
 
 

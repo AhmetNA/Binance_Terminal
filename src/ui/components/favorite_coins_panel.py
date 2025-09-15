@@ -6,21 +6,14 @@ Manages the grid of favorite coins with buy/sell buttons.
 from PySide6.QtWidgets import QGroupBox, QGridLayout, QPushButton
 from PySide6.QtCore import Qt, Signal
 
-from .base_component import BaseComponent
-from ..styles.button_styles import (
+from ui.components.base_component import BaseComponent
+from ui.styles.button_styles import (
     HARD_BUY_STYLE, SOFT_BUY_STYLE, SOFT_SELL_STYLE, 
     HARD_SELL_STYLE, COIN_LABEL_STYLE
 )
-from ..styles.panel_styles import (
+from ui.styles.panel_styles import (
     FAVORITE_COINS_PANEL_STYLE, PanelSizes, LayoutSpacing
 )
-
-# Import constants from core paths
-import sys
-import os
-current_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.dirname(os.path.dirname(current_dir))
-sys.path.append(src_dir)
 
 from core.paths import FAVORITE_COIN_COUNT
 

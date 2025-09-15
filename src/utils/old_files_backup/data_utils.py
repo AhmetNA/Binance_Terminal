@@ -12,7 +12,7 @@ import time
 
 from core.globals import PREFERENCES_FILE, FAV_COINS_FILE, USDT, TICKER_SUFFIX, COINS_KEY, DYNAMIC_COIN_KEY
 from core.paths import SETTINGS_DIR
-from utils.symbols.formatting import format_binance_ticker_symbols
+from utils.symbol_utils import format_binance_ticker_symbols
 
 # File operation lock to prevent race conditions
 _file_lock = threading.Lock()

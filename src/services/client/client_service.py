@@ -2,16 +2,9 @@ from binance.client import Client
 from dotenv import load_dotenv
 import os
 import logging
-
-# Import centralized paths
 import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-try:
-    from core.paths import ENV_FILE
-except ImportError:
-    # Fallback for direct execution
-    ENV_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'config', '.env')
+
+from core.paths import ENV_FILE
 
 """
 client_service.py

@@ -148,6 +148,26 @@ binance_terminal_dev/
 
 See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development guidelines.
 
+## Recent Improvements
+
+### 🛠️ Error Handling Enhancement (September 2025)
+
+We've significantly improved the user experience by replacing cryptic API error messages with user-friendly Turkish messages:
+
+**Before:**
+
+```
+❌ APIError(code=-1100): Illegal characters found in parameter 'quantity'; legal range is '^([0-9]{1,20})(\.[0-9]{1,20})?$'.
+```
+
+**After:**
+
+```
+⚠️ BTCUSDT işlemi başarısız: Miktar formatı hatalı! Lütfen geçerli bir sayı girdiğinizden emin olun.
+```
+
+For complete details see: [docs/ERROR_HANDLING_IMPROVEMENTS.md](docs/ERROR_HANDLING_IMPROVEMENTS.md)
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

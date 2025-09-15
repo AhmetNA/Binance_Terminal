@@ -7,14 +7,7 @@ import logging
 import os
 import sys
 
-# Import centralized paths
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-try:
-    from config.preferences_manager import get_order_type, set_order_type, force_preferences_reload
-except ImportError:
-    # Fallback for direct execution
-    from src.config.preferences_manager import get_order_type, set_order_type, force_preferences_reload
+from config.preferences_manager import get_order_type, set_order_type, force_preferences_reload
 
 
 def get_current_order_type() -> str:
