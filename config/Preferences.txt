@@ -1,14 +1,14 @@
 # Preferences
 
 # Risk type ['PERCENTAGE' or 'USDT']
-risk_type = PERCENTAGE
+risk_type = USDT
 
 # Percentage type of risk
 soft_risk_percentage = %5
 hard_risk_percentage = %100
 
 # USDT type of risk
-soft_risk_by_usdt = 200USDT
+soft_risk_by_usdt = 50USDT
 hard_risk_by_usdt = 50USDT
 
 # Please enter the percentage value for acceptable price volatility.

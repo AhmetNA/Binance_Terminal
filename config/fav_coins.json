@@ -5,7 +5,7 @@
             "symbol": "LTCUSDT",
             "original_input": "LTC",
             "values": {
-                "current": 113.24,
+                "current": 81.34,
                 "15_min_ago": "0.00"
             }
         },
@@ -14,7 +14,7 @@
             "symbol": "SOLUSDT",
             "original_input": "SOL",
             "values": {
-                "current": 234.66,
+                "current": 131.41,
                 "15_min_ago": "0.00"
             }
         },
@@ -23,7 +23,7 @@
             "symbol": "BTCUSDT",
             "original_input": "BTC",
             "values": {
-                "current": 114734.0,
+                "current": 90581.44,
                 "15_min_ago": "0.00"
             }
         },
@@ -32,7 +32,7 @@
             "symbol": "ETHUSDT",
             "original_input": "ETH",
             "values": {
-                "current": 4520.24,
+                "current": 3131.37,
                 "15_min_ago": "0.00"
             }
         },
@@ -41,20 +41,20 @@
             "symbol": "DOGEUSDT",
             "original_input": "DOGE",
             "values": {
-                "current": 0.26244,
+                "current": 0.13871,
                 "15_min_ago": "0.00"
             }
         }
     ],
     "dynamic_coin": [
         {
-            "name": "SOL",
-            "symbol": "SOLUSDT",
+            "name": "DOGE",
+            "symbol": "DOGEUSDT",
             "values": {
-                "current": 234.66,
+                "current": 0.13871,
                 "15_min_ago": 2.4
             },
-            "original_input": "sol"
+            "original_input": "DOGE"
         }
     ]
 }

@@ -240,6 +240,15 @@ def unsubscribe_from_symbol(symbol_pair):
 
 # ===== WEBSOCKET SUBSCRIPTION FUNCTIONS =====
 
+def _wait_for_websocket_ready(timeout=10):
+    """Wait for WebSocket connection to be ready with timeout"""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        if ws and ws.sock and getattr(ws.sock, "connected", False):
+            return True
+        time.sleep(0.1)
+    return False
+
 def subscribe_to_dynamic_coin(binance_ticker):
     """Subscribe to dynamic coin price updates via WebSocket using binance ticker"""
     global current_dynamic_coin_subscription
@@ -255,17 +264,33 @@ def subscribe_to_dynamic_coin(binance_ticker):
     # Subscribe to new dynamic coin
     msg = {"method": "SUBSCRIBE", "params": [pair], "id": next(id_gen)}
 
+    # If WebSocket is starting, wait for it to be ready
+    if websocket_starting and not (ws and ws.sock and getattr(ws.sock, "connected", False)):
+        logging.debug(f"WebSocket is starting, waiting for connection before subscribing to: {pair}")
+        if _wait_for_websocket_ready(timeout=5):
+            logging.debug(f"WebSocket became ready, proceeding with subscription: {pair}")
+        else:
+            # Add to pending and it will be subscribed on_open
+            if pair not in pending_subscriptions:
+                pending_subscriptions.append(pair)
+            current_dynamic_coin_subscription = pair
+            logging.debug(f"WebSocket not ready after wait, added to pending queue: {pair}")
+            return
+
     if ws and ws.sock and getattr(ws.sock, "connected", False):
         try:
             ws.send(json.dumps(msg))
             current_dynamic_coin_subscription = pair
             logging.debug(f"Subscribed to dynamic coin: {pair} (from ticker: {binance_ticker})")
         except websocket.WebSocketConnectionClosedException:
-            pending_subscriptions.append(pair)
+            if pair not in pending_subscriptions:
+                pending_subscriptions.append(pair)
             logging.warning(f"Socket closed -> added to queue: {pair}")
     else:
-        pending_subscriptions.append(pair)
-        logging.warning(f"WebSocket is not ready → added to the queue: {pair}")
+        if pair not in pending_subscriptions:
+            pending_subscriptions.append(pair)
+        current_dynamic_coin_subscription = pair
+        logging.debug(f"WebSocket not connected, added to pending queue: {pair}")
 
 # ===== WEBSOCKET EVENT HANDLERS =====
 
@@ -319,24 +344,15 @@ def on_open(ws_instance):
     logging.info("WebSocket connection opened")
     connection_active = True
     
-    # Subscribe to favorite coins
+    # Collect all symbols to subscribe in one batch
+    all_subscriptions = set()
+    
+    # Add favorite coins
     if SYMBOLS:
-        initial = {
-            "method": "SUBSCRIBE",
-            "params": SYMBOLS,
-            "id": next(id_gen)
-        }
-        ws_instance.send(json.dumps(initial))
-        
-        # Only log if subscriptions changed
-        current_subscription_key = frozenset(SYMBOLS)
-        if last_logged_subscription != current_subscription_key:
-            logging.info(f"✅ Subscribed to {len(SYMBOLS)} favorite coins: {SYMBOLS}")
-            last_logged_subscription = current_subscription_key
-    else:
-        logging.warning("No favorite coins symbols found to subscribe to")
-
-    # Subscribe to existing dynamic coin if it exists
+        for symbol in SYMBOLS:
+            all_subscriptions.add(symbol)
+    
+    # Add existing dynamic coin if it exists
     fav_coins_data = load_fav_coins()
     dynamic_coin = fav_coins_data.get(DYNAMIC_COIN_KEY, [])
     if isinstance(dynamic_coin, list) and dynamic_coin and 'symbol' in dynamic_coin[0]:
@@ -345,25 +361,31 @@ def on_open(ws_instance):
             base = symbol.upper().replace(USDT, "")
             pair = f"{base.lower()}{USDT.lower()}{TICKER_SUFFIX}"
             current_dynamic_coin_subscription = pair
-            
-            dynamic_msg = {
-                "method": "SUBSCRIBE",
-                "params": [pair],
-                "id": next(id_gen)
-            }
-            ws_instance.send(json.dumps(dynamic_msg))
-            logging.debug(f"Subscribed to existing dynamic coin: {pair}")
+            all_subscriptions.add(pair)
 
-    # Subscribe to any pending dynamic coins
+    # Add pending subscriptions
     if pending_subscriptions:
-        pending_msg = {
+        for pair in pending_subscriptions:
+            all_subscriptions.add(pair)
+        pending_subscriptions.clear()
+    
+    # Subscribe to all symbols in one batch
+    if all_subscriptions:
+        subscriptions_list = list(all_subscriptions)
+        subscribe_msg = {
             "method": "SUBSCRIBE",
-            "params": pending_subscriptions.copy(),
+            "params": subscriptions_list,
             "id": next(id_gen)
         }
-        ws_instance.send(json.dumps(pending_msg))
-        logging.debug(f"Subscribed to {len(pending_subscriptions)} pending symbols")
-        pending_subscriptions.clear()
+        ws_instance.send(json.dumps(subscribe_msg))
+        
+        # Only log if subscriptions changed
+        current_subscription_key = frozenset(subscriptions_list)
+        if last_logged_subscription != current_subscription_key:
+            logging.info(f"✅ Subscribed to {len(subscriptions_list)} symbols: {subscriptions_list}")
+            last_logged_subscription = current_subscription_key
+    else:
+        logging.warning("No symbols found to subscribe to")
 
 def on_close(ws_instance, close_status_code, close_msg):
     """
@@ -412,16 +434,30 @@ def run_websocket():
     """
     global ws, connection_active, websocket_starting
     
+    logging.info("WebSocket thread started")
+    
+    # Give the starting process a moment to set flags
+    time.sleep(0.2)
+    
     while True:
         try:
-            # Check if we should stop (connection_active is False and we're not just starting)
-            if not connection_active and not websocket_starting:
-                logging.debug("WebSocket stopping due to connection_active=False")
-                break
-                
+            # Create websocket if needed
             if not ws:
+                logging.debug("Creating new WebSocket connection...")
                 ws = create_websocket()
+            
+            logging.debug("Running WebSocket connection...")
             ws.run_forever(sslopt=ssl_options)
+            
+            # After run_forever returns, check if we should reconnect
+            if not connection_active and not websocket_starting:
+                logging.debug("WebSocket stopping - connection no longer active")
+                break
+            
+            # If connection was lost but we should still be running, wait and retry
+            logging.info(f"WebSocket connection ended, reconnecting in {RECONNECT_DELAY} seconds...")
+            time.sleep(RECONNECT_DELAY)
+            ws = None  # Reset for clean reconnection
             
         except Exception as e:
             logging.error(f"WebSocket Error: {e}. Reconnecting in {RECONNECT_DELAY} seconds...")
@@ -430,7 +466,7 @@ def run_websocket():
             ws = None  # Reset websocket for clean reconnection
             
             # If we're not actively trying to restart, break the loop
-            if not websocket_starting:
+            if not websocket_starting and not connection_active:
                 logging.debug("WebSocket stopping after error - not restarting")
                 break
 
@@ -438,7 +474,7 @@ def start_price_websocket():
     """
     Initialize and start the price WebSocket service in background.
     """
-    global SYMBOLS, websocket_starting, connection_active
+    global SYMBOLS, websocket_starting, connection_active, ws, ws_app
     
     # For restart scenarios, allow override of existing connections
     restart_mode = not connection_active and not websocket_starting
@@ -451,6 +487,14 @@ def start_price_websocket():
     # If we're in restart mode, force clear existing state
     if not connection_active:
         logging.info("Starting WebSocket (restart mode)")
+        # Clean up any stale websocket references
+        if ws_app:
+            try:
+                ws_app.close()
+            except:
+                pass
+        ws_app = None
+        ws = None
         websocket_starting = True
     elif connection_active:
         logging.warning("WebSocket is already active, skipping...")
@@ -463,18 +507,27 @@ def start_price_websocket():
         SYMBOLS = load_user_preferences()
         logging.debug(f"Loaded {len(SYMBOLS)} symbols for WebSocket")
         
+        # Mark as starting before thread creation
+        connection_active = True
+        
         # Start WebSocket in daemon thread
         thread = threading.Thread(target=run_websocket, daemon=True)
         thread.start()
         logging.info("Price WebSocket started in background.")
         
-        # Reset the starting flag after a short delay
+        # Reset the starting flag after connection is established or timeout
         def reset_starting_flag():
             global websocket_starting
-            time.sleep(2)
-            if not connection_active:
-                # If connection didn't become active, something went wrong
-                logging.warning("WebSocket did not become active after 2 seconds")
+            # Wait for connection to be established
+            for _ in range(50):  # 5 seconds timeout
+                if ws and ws.sock and getattr(ws.sock, "connected", False):
+                    logging.debug("WebSocket connection confirmed active")
+                    break
+                time.sleep(0.1)
+            
+            if not (ws and ws.sock and getattr(ws.sock, "connected", False)):
+                logging.warning("WebSocket did not become active after 5 seconds")
+            
             websocket_starting = False
             logging.debug("WebSocket starting flag reset")
         
@@ -485,6 +538,7 @@ def start_price_websocket():
         
     except Exception as e:
         websocket_starting = False
+        connection_active = False
         logging.error(f"Error starting WebSocket: {e}")
         raise
 
