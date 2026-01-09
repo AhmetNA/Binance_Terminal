@@ -129,43 +129,47 @@ SETTINGS_DIALOG_STYLE = """
     }
 """
 
+
 # Common sizes and dimensions
 class PanelSizes:
     """Common panel size constants."""
+
     FAVORITE_COINS_MIN_WIDTH = 430
     FAVORITE_COINS_MIN_HEIGHT = 220
-    
+
     DYNAMIC_COIN_MIN_WIDTH = 100
     DYNAMIC_COIN_MIN_HEIGHT = 20
-    
+
     WALLET_FRAME_WIDTH = 200
     WALLET_FRAME_HEIGHT = 95
-    
+
     COIN_ENTRY_FRAME_WIDTH = 200
     COIN_ENTRY_FRAME_HEIGHT = 120
-    
+
     TERMINAL_HEIGHT = 180
-    
+
     SETTINGS_BUTTON_WIDTH = 75
     SETTINGS_BUTTON_HEIGHT = 28
 
+
 class LayoutSpacing:
     """Common layout spacing constants."""
+
     MAIN_MARGIN = 5
     MAIN_SPACING = 4
-    
+
     FAV_COIN_MARGIN = 3
     FAV_COIN_SPACING = 3
-    
+
     DYN_COIN_MARGIN = 5
     DYN_COIN_SPACING = 8
     DYN_COIN_EXTRA_SPACING = 20
-    
+
     RIGHT_PANEL_SPACING = 5
-    
+
     WALLET_MARGIN = 8
     WALLET_SPACING = 2
-    
+
     ENTRY_MARGIN = 8
     ENTRY_SPACING = 4
     ENTRY_EXTRA_SPACING = 8

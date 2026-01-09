@@ -1,15 +1,15 @@
 # Preferences
 
 # Risk type ['PERCENTAGE' or 'USDT']
-risk_type = USDT
+risk_type = PERCENTAGE
 
 # Percentage type of risk
-soft_risk_percentage = %5
-hard_risk_percentage = %100
+soft_risk_percentage = %10
+hard_risk_percentage = %40
 
 # USDT type of risk
-soft_risk_by_usdt = 50USDT
-hard_risk_by_usdt = 50USDT
+soft_risk_by_usdt = 200USDT
+hard_risk_by_usdt = 500USDT
 
 # Please enter the percentage value for acceptable price volatility.
 # Example:
@@ -19,9 +19,9 @@ accepted_price_volatility = %%2
 
 # TRADING SETTINGS
 # Order type for dynamic coin trades (MARKET or LIMIT)
-order_type = LIMIT
+order_type = MARKET
 
 # Please write only coin symbol with big letters
-favorite_coins = LTC, SOL, BTC, ETH, DOGE
+favorite_coins = LTC, XRP, BTC, ETH, DOGE
 chart_interval = 1
-dynamic_coin = SOL
+dynamic_coin = ADA

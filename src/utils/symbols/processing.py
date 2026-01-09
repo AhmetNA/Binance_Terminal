@@ -26,60 +26,62 @@ def process_user_coin_input(user_input):
     try:
         # Store original input
         original_input = user_input.strip()
-        
+
         if not original_input:
             return {
-                'success': False,
-                'binance_ticker': '',
-                'view_coin_name': '',
-                'original_input': original_input,
-                'error_message': 'Coin adı boş olamaz'
+                "success": False,
+                "binance_ticker": "",
+                "view_coin_name": "",
+                "original_input": original_input,
+                "error_message": "Coin name cannot be empty",
             }
-        
+
         # Kullanıcı inputunu Binance ticker formatına çevir
         _, binance_ticker = format_user_input_to_binance_ticker(original_input)
-        
+
         # Desteklenmeyen quote asset kontrolü
-        if binance_ticker.startswith('ERROR_UNSUPPORTED_QUOTE_'):
-            quote_asset = binance_ticker.split('_')[-1]
+        if binance_ticker.startswith("ERROR_UNSUPPORTED_QUOTE_"):
+            quote_asset = binance_ticker.split("_")[-1]
             return {
-                'success': False,
-                'binance_ticker': '',
-                'view_coin_name': '',
-                'original_input': original_input,
-                'error_message': f"Sadece USDT trading pair'leri desteklenmektedir. {quote_asset} desteklenmiyor."
+                "success": False,
+                "binance_ticker": "",
+                "view_coin_name": "",
+                "original_input": original_input,
+                "error_message": f"Only USDT trading pairs are supported. {quote_asset} is not supported.",
             }
-        
+
         # Geçersiz coin pair kontrolü (örn: BTCBNB, ETHBTC)
-        if binance_ticker.startswith('ERROR_INVALID_PAIR_'):
-            parts = binance_ticker.split('_')
+        if binance_ticker.startswith("ERROR_INVALID_PAIR_"):
+            parts = binance_ticker.split("_")
             coin1, coin2 = parts[2], parts[3]
             return {
-                'success': False,
-                'binance_ticker': '',
-                'view_coin_name': '',
-                'original_input': original_input,
-                'error_message': f"Geçersiz coin çifti: {coin1}/{coin2}. Lütfen sadece coin adını girin (örn: 'btc', 'eth') veya USDT çifti kullanın (örn: 'btcusdt')."
+                "success": False,
+                "binance_ticker": "",
+                "view_coin_name": "",
+                "original_input": original_input,
+                "error_message": f"Invalid coin pair: {coin1}/{coin2}. Enter only the base coin (e.g. 'btc', 'eth') or use a USDT pair (e.g. 'btcusdt').",
             }
-        
+
         if not binance_ticker:
             return {
-                'success': False,
-                'binance_ticker': '',
-                'view_coin_name': '',
-                'original_input': original_input,
-                'error_message': 'Geçersiz coin formatı'
+                "success": False,
+                "binance_ticker": "",
+                "view_coin_name": "",
+                "original_input": original_input,
+                "error_message": "Invalid coin format",
             }
-        
+
         # Symbol'ü validate et (önce simple, sonra API)
         is_valid = False
-        
+
         if validate_symbol_simple(binance_ticker):
             is_valid = True
             # logging.debug(f"Symbol {binance_ticker} validated using simple check")
         else:
             # Simple check başarısızsa API validation dene
-            logging.debug(f"Simple validation failed for {binance_ticker}, trying API validation...")
+            logging.debug(
+                f"Simple validation failed for {binance_ticker}, trying API validation..."
+            )
             try:
                 is_valid = validate_symbol_for_binance(binance_ticker)
                 if is_valid:
@@ -87,38 +89,42 @@ def process_user_coin_input(user_input):
                 else:
                     logging.warning(f"Symbol {binance_ticker} not found on Binance")
             except Exception as api_error:
-                logging.error(f"API validation failed for {binance_ticker}: {api_error}")
+                logging.error(
+                    f"API validation failed for {binance_ticker}: {api_error}"
+                )
                 is_valid = False
-        
+
         if not is_valid:
             return {
-                'success': False,
-                'binance_ticker': '',
-                'view_coin_name': '',
-                'original_input': original_input,
-                'error_message': f"Coin '{original_input}' not found on Binance."
+                "success": False,
+                "binance_ticker": "",
+                "view_coin_name": "",
+                "original_input": original_input,
+                "error_message": f"Coin '{original_input}' not found on Binance.",
             }
-        
+
         # View coin name oluştur
         view_coin_name = view_coin_format(binance_ticker)
-        
-        logging.debug(f"Successfully processed coin input: {original_input} -> Ticker: {binance_ticker}, View: {view_coin_name}")
-        
+
+        logging.debug(
+            f"Successfully processed coin input: {original_input} -> Ticker: {binance_ticker}, View: {view_coin_name}"
+        )
+
         return {
-            'success': True,
-            'binance_ticker': binance_ticker,
-            'view_coin_name': view_coin_name,
-            'original_input': original_input,
-            'error_message': ''
+            "success": True,
+            "binance_ticker": binance_ticker,
+            "view_coin_name": view_coin_name,
+            "original_input": original_input,
+            "error_message": "",
         }
-        
+
     except Exception as e:
-        error_msg = f"Coin işlenirken hata oluştu: {str(e)}"
+        error_msg = f"Error while processing coin: {str(e)}"
         logging.error(f"Error processing coin input '{user_input}': {e}")
         return {
-            'success': False,
-            'binance_ticker': '',
-            'view_coin_name': '',
-            'original_input': user_input,
-            'error_message': error_msg
+            "success": False,
+            "binance_ticker": "",
+            "view_coin_name": "",
+            "original_input": user_input,
+            "error_message": error_msg,
         }

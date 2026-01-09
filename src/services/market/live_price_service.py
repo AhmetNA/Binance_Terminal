@@ -1,7 +1,7 @@
 """
 Live Price Service Module
 
-This module provides real-time cryptocurrency price monitoring and management through WebSocket 
+This module provides real-time cryptocurrency price monitoring and management through WebSocket
 connections and data storage operations. It serves as the central hub for all live price operations.
 
 Features:
@@ -12,42 +12,42 @@ Features:
 - Symbol validation and management
 - Live price broadcasting and notifications
 """
+
 import websocket
 import json
 import threading
 import time
 import ssl
-import os
 import logging
-import sys
 
-from core.globals import pending_subscriptions, USDT, TICKER_SUFFIX, RECONNECT_DELAY, COINS_KEY, DYNAMIC_COIN_KEY
+from core.globals import (
+    pending_subscriptions,
+    USDT,
+    TICKER_SUFFIX,
+    RECONNECT_DELAY,
+    COINS_KEY,
+    DYNAMIC_COIN_KEY,
+)
 from core.paths import MAIN_LOG_FILE
 
 # Import utility functions
 from utils.symbols import (
-    validate_symbol_for_binance,
-    validate_symbol_simple,
-    validate_and_format_symbol,
-    format_user_input_to_binance_ticker,
     process_user_coin_input,
-    validate_coin_before_setting,
-    view_coin_format
 )
 from utils.data import (
     load_fav_coins,
     write_favorite_coins_to_json,
-    load_user_preferences
+    load_user_preferences,
 )
 
 # Logging configuration
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(MAIN_LOG_FILE, encoding='utf-8')
-    ]
+        logging.FileHandler(MAIN_LOG_FILE, encoding="utf-8"),
+    ],
 )
 
 ssl_options = {"ssl_version": ssl.PROTOCOL_TLSv1_2}
@@ -71,6 +71,7 @@ SAVE_INTERVAL = 2.0  # Save to file every 2 seconds max
 
 # ===== PRICE UPDATE FUNCTIONS =====
 
+
 def _save_cached_prices():
     """Save cached prices to file - internal function"""
     global _last_save_time
@@ -78,64 +79,71 @@ def _save_cached_prices():
         with _cache_lock:
             if not _price_cache:
                 return
-            
+
             data = load_fav_coins()
-            
+
             # Update prices from cache
             for symbol, price in _price_cache.items():
                 # Update regular coins
                 for coin in data.get(COINS_KEY, []):
-                    if coin['symbol'].lower() == symbol.lower():
-                        coin['values']['current'] = price
+                    if coin["symbol"].lower() == symbol.lower():
+                        coin["values"]["current"] = price
                         break
-                
+
                 # Update dynamic coin if it matches
-                if isinstance(data.get(DYNAMIC_COIN_KEY, []), list) and data[DYNAMIC_COIN_KEY]:
-                    if data[DYNAMIC_COIN_KEY][0]['symbol'].lower() == symbol.lower():
-                        data[DYNAMIC_COIN_KEY][0]['values']['current'] = price
-            
+                if (
+                    isinstance(data.get(DYNAMIC_COIN_KEY, []), list)
+                    and data[DYNAMIC_COIN_KEY]
+                ):
+                    if data[DYNAMIC_COIN_KEY][0]["symbol"].lower() == symbol.lower():
+                        data[DYNAMIC_COIN_KEY][0]["values"]["current"] = price
+
             write_favorite_coins_to_json(data)
             _price_cache.clear()
             _last_save_time = time.time()
-            
+
     except Exception as e:
         logging.exception(f"Error saving cached prices: {e}")
+
 
 def _refresh_coin_price(symbol, new_price):
     """Update favorite coin price in cache and periodically save to storage"""
     try:
         global _last_save_time
         current_time = time.time()
-        
+
         with _cache_lock:
             _price_cache[symbol.lower()] = new_price
-        
+
         # Save to file if enough time has passed or cache is getting large
         if (current_time - _last_save_time > SAVE_INTERVAL) or len(_price_cache) > 10:
             _save_cached_prices()
-            
+
     except Exception as e:
         logging.exception(f"Error refreshing coin price for {symbol}: {e}")
+
 
 def _refresh_dynamic_coin_price(symbol, new_price):
     """Update dynamic coin price in cache and periodically save to storage"""
     try:
         global _last_save_time
         current_time = time.time()
-        
+
         with _cache_lock:
             _price_cache[symbol.lower()] = new_price
-        
+
         # Save to file if enough time has passed
         if current_time - _last_save_time > SAVE_INTERVAL:
             _save_cached_prices()
-            
+
     except Exception as e:
         logging.exception(f"Error refreshing dynamic coin price for {symbol}: {e}")
+
 
 def force_save_prices():
     """Force save all cached prices to file"""
     _save_cached_prices()
+
 
 def set_dynamic_coin_symbol(user_input):
     """
@@ -151,67 +159,71 @@ def set_dynamic_coin_symbol(user_input):
         }
     """
     logging.debug(f"Attempting to set dynamic coin: {user_input}")
-    
+
     try:
         # Process user input with comprehensive validation
         result = process_user_coin_input(user_input)
-        
-        if not result['success']:
+
+        if not result["success"]:
             logging.error(f"Coin validation failed: {result['error_message']}")
             return {
-                'success': False,
-                'binance_ticker': '',
-                'view_coin_name': '',
-                'error_message': result['error_message']
+                "success": False,
+                "binance_ticker": "",
+                "view_coin_name": "",
+                "error_message": result["error_message"],
             }
-        
+
         # Extract validated data
-        binance_ticker = result['binance_ticker']
-        view_coin_name = result['view_coin_name']
+        binance_ticker = result["binance_ticker"]
+        view_coin_name = result["view_coin_name"]
         # Extract base symbol (remove -USDT suffix for name)
-        base_symbol = view_coin_name.replace('-USDT', '')
-        
+        base_symbol = view_coin_name.replace("-USDT", "")
+
         # Update dynamic coin data with both ticker and view name
         data = load_fav_coins()
         if isinstance(data.get(DYNAMIC_COIN_KEY, []), list) and data[DYNAMIC_COIN_KEY]:
             # Store binance ticker for websocket subscription
-            data[DYNAMIC_COIN_KEY][0]['symbol'] = binance_ticker
+            data[DYNAMIC_COIN_KEY][0]["symbol"] = binance_ticker
             # Store base symbol for user display (BTC instead of BTC-USDT)
-            data[DYNAMIC_COIN_KEY][0]['name'] = base_symbol
+            data[DYNAMIC_COIN_KEY][0]["name"] = base_symbol
             # Store original user input for reference
-            data[DYNAMIC_COIN_KEY][0]['original_input'] = result['original_input']
-            
+            data[DYNAMIC_COIN_KEY][0]["original_input"] = result["original_input"]
+
             write_favorite_coins_to_json(data)
-            
-            logging.debug(f"Successfully set dynamic coin - Ticker: {binance_ticker}, View: {view_coin_name}")
-            
+
+            logging.debug(
+                f"Successfully set dynamic coin - Ticker: {binance_ticker}, View: {view_coin_name}"
+            )
+
             return {
-                'success': True,
-                'binance_ticker': binance_ticker,
-                'view_coin_name': view_coin_name,
-                'error_message': ''
+                "success": True,
+                "binance_ticker": binance_ticker,
+                "view_coin_name": view_coin_name,
+                "error_message": "",
             }
         else:
             error_msg = "Dynamic coin data structure is invalid"
             logging.error(error_msg)
             return {
-                'success': False,
-                'binance_ticker': '',
-                'view_coin_name': '',
-                'error_message': error_msg
+                "success": False,
+                "binance_ticker": "",
+                "view_coin_name": "",
+                "error_message": error_msg,
             }
-            
+
     except Exception as e:
         error_msg = f"Dynamic coin ayarlanırken hata oluştu: {str(e)}"
         logging.error(f"Error setting dynamic coin '{user_input}': {e}")
         return {
-            'success': False,
-            'binance_ticker': '',
-            'view_coin_name': '',
-            'error_message': error_msg
+            "success": False,
+            "binance_ticker": "",
+            "view_coin_name": "",
+            "error_message": error_msg,
         }
 
+
 # ===== WEBSOCKET UTILITY FUNCTIONS =====
+
 
 def id_generator():
     """Generate unique IDs for WebSocket messages"""
@@ -220,79 +232,66 @@ def id_generator():
         yield n
         n += 1
 
+
 id_gen = id_generator()
+
 
 def unsubscribe_from_symbol(symbol_pair):
     """Unsubscribe from a specific symbol via WebSocket"""
     msg = {"method": "UNSUBSCRIBE", "params": [symbol_pair], "id": next(id_gen)}
-    
+
     if ws and ws.sock and getattr(ws.sock, "connected", False):
         try:
             ws.send(json.dumps(msg))
             logging.debug(f"Unsubscribed from {symbol_pair}")
             return True
         except websocket.WebSocketConnectionClosedException:
-            logging.warning(f"Socket closed -> could not unsubscribe from: {symbol_pair}")
+            logging.warning(
+                f"Socket closed -> could not unsubscribe from: {symbol_pair}"
+            )
             return False
     else:
-        logging.warning(f"WebSocket is not ready → could not unsubscribe from: {symbol_pair}")
+        logging.warning(
+            f"WebSocket is not ready → could not unsubscribe from: {symbol_pair}"
+        )
         return False
+
 
 # ===== WEBSOCKET SUBSCRIPTION FUNCTIONS =====
 
-def _wait_for_websocket_ready(timeout=10):
-    """Wait for WebSocket connection to be ready with timeout"""
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        if ws and ws.sock and getattr(ws.sock, "connected", False):
-            return True
-        time.sleep(0.1)
-    return False
 
 def subscribe_to_dynamic_coin(binance_ticker):
     """Subscribe to dynamic coin price updates via WebSocket using binance ticker"""
     global current_dynamic_coin_subscription
-    
+
     # binance_ticker already in format like 'BTCUSDT'
     base = binance_ticker.upper().replace(USDT, "")
     pair = f"{base.lower()}{USDT.lower()}{TICKER_SUFFIX}"
-    
+
     # Unsubscribe from previous dynamic coin if it exists
     if current_dynamic_coin_subscription and current_dynamic_coin_subscription != pair:
         unsubscribe_from_symbol(current_dynamic_coin_subscription)
-    
+
     # Subscribe to new dynamic coin
     msg = {"method": "SUBSCRIBE", "params": [pair], "id": next(id_gen)}
-
-    # If WebSocket is starting, wait for it to be ready
-    if websocket_starting and not (ws and ws.sock and getattr(ws.sock, "connected", False)):
-        logging.debug(f"WebSocket is starting, waiting for connection before subscribing to: {pair}")
-        if _wait_for_websocket_ready(timeout=5):
-            logging.debug(f"WebSocket became ready, proceeding with subscription: {pair}")
-        else:
-            # Add to pending and it will be subscribed on_open
-            if pair not in pending_subscriptions:
-                pending_subscriptions.append(pair)
-            current_dynamic_coin_subscription = pair
-            logging.debug(f"WebSocket not ready after wait, added to pending queue: {pair}")
-            return
 
     if ws and ws.sock and getattr(ws.sock, "connected", False):
         try:
             ws.send(json.dumps(msg))
             current_dynamic_coin_subscription = pair
-            logging.debug(f"Subscribed to dynamic coin: {pair} (from ticker: {binance_ticker})")
+            logging.debug(
+                f"Subscribed to dynamic coin: {pair} (from ticker: {binance_ticker})"
+            )
         except websocket.WebSocketConnectionClosedException:
-            if pair not in pending_subscriptions:
-                pending_subscriptions.append(pair)
+            pending_subscriptions.append(pair)
             logging.warning(f"Socket closed -> added to queue: {pair}")
     else:
-        if pair not in pending_subscriptions:
-            pending_subscriptions.append(pair)
-        current_dynamic_coin_subscription = pair
-        logging.debug(f"WebSocket not connected, added to pending queue: {pair}")
+        pending_subscriptions.append(pair)
+        logging.warning(f"WebSocket is not ready → added to the queue: {pair}")
+
 
 # ===== WEBSOCKET EVENT HANDLERS =====
+
 
 def on_message(ws_instance, message):
     """
@@ -303,20 +302,26 @@ def on_message(ws_instance, message):
     """
     try:
         data = json.loads(message)
-        if 's' in data and 'c' in data:
-            symbol = data['s']
-            new_price = float(data['c'])
+        if "s" in data and "c" in data:
+            symbol = data["s"]
+            new_price = float(data["c"])
 
             # Update favorite coins
             fav_coins_data = load_fav_coins()
-            if symbol.lower() in [coin['symbol'].lower() for coin in fav_coins_data.get(COINS_KEY, [])]:
+            if symbol.lower() in [
+                coin["symbol"].lower() for coin in fav_coins_data.get(COINS_KEY, [])
+            ]:
                 _refresh_coin_price(symbol, new_price)
 
             # Update dynamic coin
             dynamic_coin = fav_coins_data.get(DYNAMIC_COIN_KEY, [])
-            if isinstance(dynamic_coin, list) and dynamic_coin and symbol.lower() == dynamic_coin[0]['symbol'].lower():
+            if (
+                isinstance(dynamic_coin, list)
+                and dynamic_coin
+                and symbol.lower() == dynamic_coin[0]["symbol"].lower()
+            ):
                 _refresh_dynamic_coin_price(symbol, new_price)
-        elif 'result' in data and 'id' in data:
+        elif "result" in data and "id" in data:
             # This is a subscription confirmation message, ignore it
             logging.debug(f"WebSocket subscription confirmation: {data}")
         else:
@@ -324,68 +329,71 @@ def on_message(ws_instance, message):
     except Exception as e:
         logging.exception(f"WebSocket Message Error: {e}")
 
+
 def on_open(ws_instance):
     """
     @brief WebSocket connection open handler. Subscribes to favorite coins and any queued dynamic coins.
     @param ws_instance WebSocket object.
     @return None
     """
-    global SYMBOLS, current_dynamic_coin_subscription, connection_active, last_logged_subscription
-    
+    global \
+        SYMBOLS, \
+        current_dynamic_coin_subscription, \
+        connection_active, \
+        last_logged_subscription
+
     # Check if this connection should be active
     if not connection_active and not websocket_starting:
-        logging.warning("WebSocket opened but connection should not be active, closing...")
+        logging.warning(
+            "WebSocket opened but connection should not be active, closing..."
+        )
         try:
             ws_instance.close()
         except:
             pass
         return
-    
+
     logging.info("WebSocket connection opened")
     connection_active = True
-    
-    # Collect all symbols to subscribe in one batch
-    all_subscriptions = set()
-    
-    # Add favorite coins
+
+    # Subscribe to favorite coins
     if SYMBOLS:
-        for symbol in SYMBOLS:
-            all_subscriptions.add(symbol)
-    
-    # Add existing dynamic coin if it exists
+        initial = {"method": "SUBSCRIBE", "params": SYMBOLS, "id": next(id_gen)}
+        ws_instance.send(json.dumps(initial))
+
+        # Only log if subscriptions changed
+        current_subscription_key = frozenset(SYMBOLS)
+        if last_logged_subscription != current_subscription_key:
+            logging.info(f"✅ Subscribed to {len(SYMBOLS)} favorite coins: {SYMBOLS}")
+            last_logged_subscription = current_subscription_key
+    else:
+        logging.warning("No favorite coins symbols found to subscribe to")
+
+    # Subscribe to existing dynamic coin if it exists
     fav_coins_data = load_fav_coins()
     dynamic_coin = fav_coins_data.get(DYNAMIC_COIN_KEY, [])
-    if isinstance(dynamic_coin, list) and dynamic_coin and 'symbol' in dynamic_coin[0]:
-        symbol = dynamic_coin[0]['symbol']
+    if isinstance(dynamic_coin, list) and dynamic_coin and "symbol" in dynamic_coin[0]:
+        symbol = dynamic_coin[0]["symbol"]
         if symbol:
             base = symbol.upper().replace(USDT, "")
             pair = f"{base.lower()}{USDT.lower()}{TICKER_SUFFIX}"
             current_dynamic_coin_subscription = pair
-            all_subscriptions.add(pair)
 
-    # Add pending subscriptions
+            dynamic_msg = {"method": "SUBSCRIBE", "params": [pair], "id": next(id_gen)}
+            ws_instance.send(json.dumps(dynamic_msg))
+            logging.debug(f"Subscribed to existing dynamic coin: {pair}")
+
+    # Subscribe to any pending dynamic coins
     if pending_subscriptions:
-        for pair in pending_subscriptions:
-            all_subscriptions.add(pair)
-        pending_subscriptions.clear()
-    
-    # Subscribe to all symbols in one batch
-    if all_subscriptions:
-        subscriptions_list = list(all_subscriptions)
-        subscribe_msg = {
+        pending_msg = {
             "method": "SUBSCRIBE",
-            "params": subscriptions_list,
-            "id": next(id_gen)
+            "params": pending_subscriptions.copy(),
+            "id": next(id_gen),
         }
-        ws_instance.send(json.dumps(subscribe_msg))
-        
-        # Only log if subscriptions changed
-        current_subscription_key = frozenset(subscriptions_list)
-        if last_logged_subscription != current_subscription_key:
-            logging.info(f"✅ Subscribed to {len(subscriptions_list)} symbols: {subscriptions_list}")
-            last_logged_subscription = current_subscription_key
-    else:
-        logging.warning("No symbols found to subscribe to")
+        ws_instance.send(json.dumps(pending_msg))
+        logging.debug(f"Subscribed to {len(pending_subscriptions)} pending symbols")
+        pending_subscriptions.clear()
+
 
 def on_close(ws_instance, close_status_code, close_msg):
     """
@@ -397,7 +405,10 @@ def on_close(ws_instance, close_status_code, close_msg):
     """
     global connection_active
     connection_active = False
-    logging.info(f"WebSocket connection closed! Status: {close_status_code}, Message: {close_msg}")
+    logging.info(
+        f"WebSocket connection closed! Status: {close_status_code}, Message: {close_msg}"
+    )
+
 
 def on_error(ws_instance, error):
     """
@@ -410,7 +421,9 @@ def on_error(ws_instance, error):
     connection_active = False
     logging.error(f"WebSocket Error: {error}")
 
+
 # ===== WEBSOCKET SETUP =====
+
 
 def create_websocket():
     """Create and configure WebSocket connection"""
@@ -420,139 +433,113 @@ def create_websocket():
         on_open=on_open,
         on_message=on_message,
         on_close=on_close,
-        on_error=on_error
+        on_error=on_error,
     )
     ws = ws_app  # Keep backward compatibility
     connection_active = True
     return ws_app
 
+
 # ===== WEBSOCKET OPERATIONS =====
+
 
 def run_websocket():
     """
     Continuously run the WebSocket connection with reconnection logic.
     """
     global ws, connection_active, websocket_starting
-    
-    logging.info("WebSocket thread started")
-    
-    # Give the starting process a moment to set flags
-    time.sleep(0.2)
-    
+
     while True:
         try:
-            # Create websocket if needed
-            if not ws:
-                logging.debug("Creating new WebSocket connection...")
-                ws = create_websocket()
-            
-            logging.debug("Running WebSocket connection...")
-            ws.run_forever(sslopt=ssl_options)
-            
-            # After run_forever returns, check if we should reconnect
+            # Check if we should stop (connection_active is False and we're not just starting)
             if not connection_active and not websocket_starting:
-                logging.debug("WebSocket stopping - connection no longer active")
+                logging.debug("WebSocket stopping due to connection_active=False")
                 break
-            
-            # If connection was lost but we should still be running, wait and retry
-            logging.info(f"WebSocket connection ended, reconnecting in {RECONNECT_DELAY} seconds...")
-            time.sleep(RECONNECT_DELAY)
-            ws = None  # Reset for clean reconnection
-            
+
+            if not ws:
+                ws = create_websocket()
+            ws.run_forever(sslopt=ssl_options)
+
         except Exception as e:
-            logging.error(f"WebSocket Error: {e}. Reconnecting in {RECONNECT_DELAY} seconds...")
+            logging.error(
+                f"WebSocket Error: {e}. Reconnecting in {RECONNECT_DELAY} seconds..."
+            )
             connection_active = False
             time.sleep(RECONNECT_DELAY)
             ws = None  # Reset websocket for clean reconnection
-            
+
             # If we're not actively trying to restart, break the loop
-            if not websocket_starting and not connection_active:
+            if not websocket_starting:
                 logging.debug("WebSocket stopping after error - not restarting")
                 break
+
 
 def start_price_websocket():
     """
     Initialize and start the price WebSocket service in background.
     """
-    global SYMBOLS, websocket_starting, connection_active, ws, ws_app
-    
+    global SYMBOLS, websocket_starting, connection_active
+
     # For restart scenarios, allow override of existing connections
     restart_mode = not connection_active and not websocket_starting
-    
+
     # Prevent multiple simultaneous starts (unless it's a restart)
     if websocket_starting and connection_active:
         logging.warning("WebSocket is already starting and active, skipping...")
         return None
-    
+
     # If we're in restart mode, force clear existing state
     if not connection_active:
         logging.info("Starting WebSocket (restart mode)")
-        # Clean up any stale websocket references
-        if ws_app:
-            try:
-                ws_app.close()
-            except:
-                pass
-        ws_app = None
-        ws = None
         websocket_starting = True
     elif connection_active:
         logging.warning("WebSocket is already active, skipping...")
         return None
     else:
         websocket_starting = True
-    
+
     try:
         # Load user preferences and get symbols for subscription
         SYMBOLS = load_user_preferences()
         logging.debug(f"Loaded {len(SYMBOLS)} symbols for WebSocket")
-        
-        # Mark as starting before thread creation
-        connection_active = True
-        
+
         # Start WebSocket in daemon thread
         thread = threading.Thread(target=run_websocket, daemon=True)
         thread.start()
         logging.info("Price WebSocket started in background.")
-        
-        # Reset the starting flag after connection is established or timeout
+
+        # Reset the starting flag after a short delay
         def reset_starting_flag():
             global websocket_starting
-            # Wait for connection to be established
-            for _ in range(50):  # 5 seconds timeout
-                if ws and ws.sock and getattr(ws.sock, "connected", False):
-                    logging.debug("WebSocket connection confirmed active")
-                    break
-                time.sleep(0.1)
-            
-            if not (ws and ws.sock and getattr(ws.sock, "connected", False)):
-                logging.warning("WebSocket did not become active after 5 seconds")
-            
+            time.sleep(2)
+            if not connection_active:
+                # If connection didn't become active, something went wrong
+                logging.warning("WebSocket did not become active after 2 seconds")
             websocket_starting = False
             logging.debug("WebSocket starting flag reset")
-        
+
         reset_thread = threading.Thread(target=reset_starting_flag, daemon=True)
         reset_thread.start()
-        
+
         return thread
-        
+
     except Exception as e:
         websocket_starting = False
-        connection_active = False
         logging.error(f"Error starting WebSocket: {e}")
         raise
+
 
 def stop_websocket():
     """Stop the WebSocket connection safely"""
     global ws, ws_app, connection_active, websocket_starting
-    
+
     try:
         logging.info("🛑 Stopping WebSocket connection...")
-        
+
         # Set flags to stop any running processes
         connection_active = False
         websocket_starting = False
-        
+
         # Close WebSocket connections safely
         if ws_app:
             try:
@@ -560,20 +547,20 @@ def stop_websocket():
                 logging.debug("✅ Closed ws_app connection")
             except Exception as e:
                 logging.warning(f"Error closing ws_app: {e}")
-        
+
         if ws and ws != ws_app:  # Avoid double-closing if they're the same object
             try:
                 ws.close()
                 logging.debug("✅ Closed ws connection")
             except Exception as e:
                 logging.warning(f"Error closing ws: {e}")
-        
+
         # Reset WebSocket variables
         ws_app = None
         ws = None
-        
+
         logging.info("✅ WebSocket connection stopped successfully")
-        
+
     except Exception as e:
         logging.error(f"❌ Error stopping WebSocket: {e}")
         # Force reset even if there's an error
@@ -582,20 +569,24 @@ def stop_websocket():
         ws_app = None
         ws = None
 
+
 def is_websocket_connected():
     """Check if WebSocket is currently connected"""
     global ws
     return ws and ws.sock and getattr(ws.sock, "connected", False)
+
 
 def get_websocket_status():
     """Get current WebSocket connection status"""
     return {
         "connected": is_websocket_connected(),
         "symbols_count": len(SYMBOLS),
-        "pending_subscriptions": len(pending_subscriptions)
+        "pending_subscriptions": len(pending_subscriptions),
     }
 
+
 # ===== MAIN ENTRY POINTS =====
+
 
 def set_and_subscribe_dynamic_coin(user_input):
     """
@@ -607,25 +598,28 @@ def set_and_subscribe_dynamic_coin(user_input):
     """
     # Step 1: Set dynamic coin with validation
     result = set_dynamic_coin_symbol(user_input)
-    
-    if not result['success']:
+
+    if not result["success"]:
         logging.error(f"Failed to set dynamic coin: {result['error_message']}")
         return result
-    
+
     # Step 2: Subscribe to WebSocket with binance ticker
     try:
-        subscribe_to_dynamic_coin(result['binance_ticker'])
-        logging.debug(f"Successfully set and subscribed to dynamic coin: {result['view_coin_name']}")
+        subscribe_to_dynamic_coin(result["binance_ticker"])
+        logging.debug(
+            f"Successfully set and subscribed to dynamic coin: {result['view_coin_name']}"
+        )
         return result
     except Exception as e:
         error_msg = f"WebSocket subscription failed: {str(e)}"
         logging.error(error_msg)
         return {
-            'success': False,
-            'binance_ticker': result['binance_ticker'],
-            'view_coin_name': result['view_coin_name'],
-            'error_message': error_msg
+            "success": False,
+            "binance_ticker": result["binance_ticker"],
+            "view_coin_name": result["view_coin_name"],
+            "error_message": error_msg,
         }
+
 
 def restart_websocket_with_new_symbols():
     """
@@ -633,31 +627,31 @@ def restart_websocket_with_new_symbols():
     This allows dynamic updates without app restart.
     """
     global ws_app, connection_active, ws, SYMBOLS, websocket_starting
-    
+
     try:
         logging.debug("🔄 Restarting WebSocket with new favorite symbols...")
-        
+
         # Step 1: Safely stop existing WebSocket
         stop_websocket()
-        
+
         # Step 2: Wait for complete shutdown
         logging.debug("⏳ Waiting for WebSocket to fully shutdown...")
         time.sleep(3)
-        
+
         # Step 3: Reset all flags and variables completely
         connection_active = False
         websocket_starting = False
         ws_app = None
         ws = None
-        
+
         # Step 4: Reload symbols from preferences
         SYMBOLS = load_user_preferences()
         logging.info(f"� Reloaded {len(SYMBOLS)} symbols for WebSocket: {SYMBOLS}")
-        
+
         # Step 5: Start new WebSocket connection with updated symbols
         logging.info("🚀 Starting new WebSocket connection with updated symbols...")
         thread = start_price_websocket()
-        
+
         if thread:
             logging.info("✅ WebSocket restart initiated successfully")
             # Wait a bit and verify connection
@@ -668,7 +662,7 @@ def restart_websocket_with_new_symbols():
                 logging.warning("⚠️ WebSocket may still be connecting...")
         else:
             logging.error("❌ WebSocket restart failed - no thread returned")
-        
+
     except Exception as e:
         logging.error(f"❌ Error restarting WebSocket: {e}")
         # Reset flags on error
@@ -683,21 +677,21 @@ def reload_symbols():
     This is a lightweight alternative to full WebSocket restart.
     """
     global SYMBOLS, ws
-    
+
     try:
         # Load updated symbols from preferences
         new_symbols = load_user_preferences()
-        
+
         if new_symbols == SYMBOLS:
             logging.info("No changes in favorite symbols, skipping reload")
             return
-        
+
         old_count = len(SYMBOLS)
         SYMBOLS = new_symbols
         new_count = len(SYMBOLS)
-        
+
         logging.info(f"Symbol list updated: {old_count} -> {new_count} coins")
-        
+
         # If WebSocket is active, subscribe to new symbols
         if ws and connection_active:
             # Subscribe to any new favorite coins
@@ -705,20 +699,28 @@ def reload_symbols():
                 ticker_symbol = f"{symbol.lower()}usdt@ticker"
                 if ticker_symbol not in pending_subscriptions:
                     try:
-                        ws.send(json.dumps({
-                            "method": "SUBSCRIBE",
-                            "params": [ticker_symbol],
-                            "id": len(pending_subscriptions) + 1
-                        }))
+                        ws.send(
+                            json.dumps(
+                                {
+                                    "method": "SUBSCRIBE",
+                                    "params": [ticker_symbol],
+                                    "id": len(pending_subscriptions) + 1,
+                                }
+                            )
+                        )
                         pending_subscriptions.add(ticker_symbol)
-                        logging.info(f"Subscribed to new favorite coin: {ticker_symbol}")
+                        logging.info(
+                            f"Subscribed to new favorite coin: {ticker_symbol}"
+                        )
                     except Exception as e:
                         logging.error(f"Error subscribing to {ticker_symbol}: {e}")
-            
-            logging.info(f"✅ Successfully reloaded {len(SYMBOLS)} symbols into active WebSocket")
+
+            logging.info(
+                f"✅ Successfully reloaded {len(SYMBOLS)} symbols into active WebSocket"
+            )
         else:
             logging.warning("WebSocket not active, symbols updated but not subscribed")
-    
+
     except Exception as e:
         logging.error(f"Error reloading symbols: {e}")
 
@@ -739,6 +741,7 @@ def main():
     except Exception as e:
         logging.error(f"Error in main: {e}")
         force_save_prices()  # Save any cached prices before exit
+
 
 if __name__ == "__main__":
     main()

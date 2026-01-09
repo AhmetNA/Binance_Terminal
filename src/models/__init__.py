@@ -6,14 +6,14 @@ from .order_types import (
     RiskLevel,
     OrderParameters,
     OrderFactory,
-    OrderManager
+    OrderManager,
 )
 
 __all__ = [
-    'OrderSide',
-    'OrderType', 
-    'RiskLevel',
-    'OrderParameters',
-    'OrderFactory',
-    'OrderManager'
+    "OrderSide",
+    "OrderType",
+    "RiskLevel",
+    "OrderParameters",
+    "OrderFactory",
+    "OrderManager",
 ]

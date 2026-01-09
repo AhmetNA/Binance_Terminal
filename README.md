@@ -50,8 +50,8 @@ By using this application, you acknowledge and accept full responsibility for al
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/AhmetNA/binance-terminal.git
-cd binance-terminal
+git clone https://github.com/AhmetNA/Binance_Terminal.git
+cd Binance_Terminal
 ```
 
 2. Install dependencies:
@@ -92,81 +92,144 @@ Edit `config/preferences.txt` to customize:
 ## Project Structure
 
 ```
-binance_terminal_dev/
-├── LICENSE                    # MIT License
-├── README.md                  # Project documentation
-├── pyproject.toml            # Python project configuration
-├── requirements.txt          # Production dependencies
-├── requirements-dev.txt      # Development dependencies
-├── run.sh                    # Linux/macOS run script
-├── run_app.bat              # Windows run script
-├── .gitignore               # Git ignore rules
-├── .gitattributes           # Git attributes
-├── venv/                    # Virtual environment (if created locally)
-├── assets/                  # Application assets
-│   └── btc.png             # Bitcoin icon
-├── config/                  # Configuration files
-│   ├── fav_coins.json      # User's favorite coins
-│   ├── preferences.txt     # User preferences
-│   └── *.example           # Example configuration files
-├── data/                    # Application data storage
-│   ├── analytics/          # Performance and analytics data
-│   ├── portfolio/          # Portfolio tracking data
-│   └── trades/             # Trading history data
-├── docs/                    # Documentation
-│   └── CONTRIBUTING.md     # Development guidelines
-├── logs/                    # Application logs
-│   └── binance_terminal_*.log  # Daily log files
-├── scripts/                 # Build and utility scripts
-│   ├── build_exe.py        # Executable builder
-│   ├── run.py              # Application runner
-│   ├── setup.py            # Setup utilities
-│   └── test_*.py           # Test scripts
-├── src/                     # Source code
-│   ├── __init__.py         # Package initialization
-│   ├── main.py             # Application entry point
-│   ├── api/                # External API integrations
-│   │   ├── __init__.py
-│   │   └── http_client.py  # HTTP client for Binance API
-│   ├── config/             # Configuration management
-│   │   ├── __init__.py
-│   │   ├── constants/      # Application constants
-│   │   ├── preferences_manager.py  # Preferences handling
-│   │   └── preferences_service.py  # Preferences service layer
-│   ├── core/               # Core application logic
-│   ├── data/               # Data management layer
-│   ├── models/             # Data models and schemas
-│   ├── services/           # Business logic services
-│   ├── ui/                 # User interface components
-│   └── utils/              # Utility functions and helpers
-└── tests/                   # Test suite
-    ├── __init__.py
-    └── unit/               # Unit tests
+binance_terminal/
+├── assets
+│   └── btc.png
+├── config
+│   ├── .env.example
+│   ├── fav_coins.json.backup
+│   ├── .gitignore
+│   ├── preferences.example.txt
+│   └── Preferences.txt
+├── data
+│   ├── analytics
+│   ├── portfolio
+│   └── trades
+├── docs
+│   └── CONTRIBUTING.md
+├── .github
+│   └── workflows
+│       └── ci.yml
+├── scripts
+│   ├── build.bat
+│   └── build_exe.py
+├── src
+│   ├── api
+│   │   ├── http_client.py
+│   │   └── __init__.py
+│   ├── config
+│   │   ├── constants
+│   │   │   └── trading.py
+│   │   ├── __init__.py
+│   │   ├── preferences_manager.py
+│   │   └── preferences_service.py
+│   ├── core
+│   │   ├── globals.py
+│   │   ├── __init__.py
+│   │   ├── logger.py
+│   │   ├── paths.py
+│   │   └── trading_operations.py
+│   ├── data
+│   │   ├── analytics_service.py
+│   │   ├── data_manager.py
+│   │   └── __init__.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   └── order_types.py
+│   ├── services
+│   │   ├── account
+│   │   │   ├── account_service.py
+│   │   │   ├── __init__.py
+│   │   │   └── wallet_service.py
+│   │   ├── client
+│   │   │   ├── client_service.py
+│   │   │   └── __init__.py
+│   │   ├── market
+│   │   │   ├── __init__.py
+│   │   │   └── live_price_service.py
+│   │   ├── orders
+│   │   │   ├── __init__.py
+│   │   │   ├── limit_order_service_backup.py
+│   │   │   ├── limit_order_service.py
+│   │   │   ├── market_order_service.py
+│   │   │   ├── order_service.py
+│   │   │   └── order_type_manager.py
+│   │   └── __init__.py
+│   ├── ui
+│   │   ├── components
+│   │   │   ├── base_component.py
+│   │   │   ├── chart_widget.py
+│   │   │   ├── coin_entry_panel.py
+│   │   │   ├── dynamic_coin_panel.py
+│   │   │   ├── favorite_coins_panel.py
+│   │   │   ├── __init__.py
+│   │   │   ├── splash_screen.py
+│   │   │   ├── terminal_widget.py
+│   │   │   └── wallet_panel.py
+│   │   ├── dialogs
+│   │   │   ├── api_credentials_dialog.py
+│   │   │   ├── __init__.py
+│   │   │   ├── master_password_dialog.py
+│   │   │   ├── security_dialogs.py
+│   │   │   └── settings_dialog.py
+│   │   ├── styles
+│   │   │   ├── button_styles.py
+│   │   │   ├── __init__.py
+│   │   │   └── panel_styles.py
+│   │   ├── __init__.py
+│   │   └── main_window.py
+│   ├── utils
+│   │   ├── data
+│   │   │   ├── config_manager.py
+│   │   │   ├── favorites_manager.py
+│   │   │   ├── file_operations.py
+│   │   │   └── __init__.py
+│   │   ├── security
+│   │   │   ├── encryption_manager.py
+│   │   │   ├── __init__.py
+│   │   │   └── secure_storage.py
+│   │   ├── symbols
+│   │   │   ├── formatting.py
+│   │   │   ├── __init__.py
+│   │   │   ├── processing.py
+│   │   │   └── validation.py
+│   │   ├── trading
+│   │   │   ├── __init__.py
+│   │   │   ├── price_operations.py
+│   │   │   ├── quantity_calculations.py
+│   │   │   └── symbol_validation.py
+│   │   ├── data_utils.py
+│   │   ├── __init__.py
+│   │   ├── math_utils.py
+│   │   └── order_utils.py
+│   ├── __init__.py
+│   └── main.py
+├── tests
+│   ├── integration
+│   │   ├── __init__.py
+│   │   └── test_end_to_end.py
+│   ├── unit
+│   │   ├── test_client_service.py
+│   │   ├── test_data_management.py
+│   │   ├── test_order_service.py
+│   │   ├── test_price_service.py
+│   │   └── test_trade_execution.py
+│   ├── conftest.py
+│   ├── __init__.py
+│   └── test_smoke.py
+├── .gitattributes
+├── .gitignore
+├── LICENSE
+├── pyproject.toml
+├── README.md
+├── requirements-dev.txt
+├── requirements.txt
+└── run_app.bat
 ```
 
 ## Development
 
 See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for development guidelines.
-
-## Recent Improvements
-
-### 🛠️ Error Handling Enhancement (September 2025)
-
-We've significantly improved the user experience by replacing cryptic API error messages with user-friendly Turkish messages:
-
-**Before:**
-
-```
-❌ APIError(code=-1100): Illegal characters found in parameter 'quantity'; legal range is '^([0-9]{1,20})(\.[0-9]{1,20})?$'.
-```
-
-**After:**
-
-```
-⚠️ BTCUSDT işlemi başarısız: Miktar formatı hatalı! Lütfen geçerli bir sayı girdiğinizden emin olun.
-```
-
-For complete details see: [docs/ERROR_HANDLING_IMPROVEMENTS.md](docs/ERROR_HANDLING_IMPROVEMENTS.md)
 
 ## License
 

@@ -1,24 +1,27 @@
-# Trading Preferences Configuration
-# This file contains user preferences for trading parameters
+# Preferences
 
-# Risk Management
-# Percentage of portfolio to risk on soft trades (1-10%)
-soft_risk = 2%
+# Risk type ['PERCENTAGE' or 'USDT']
+risk_type = PERCENTAGE
 
-# Percentage of portfolio to risk on hard trades (5-20%)  
-hard_risk = 5%
+# Percentage type of risk
+soft_risk_percentage = %10
+hard_risk_percentage = %40
 
-# Price volatility threshold (0.1-5%)
-accepted_price_volatility = 1%
+# USDT type of risk
+soft_risk_by_usdt = 200USDT
+hard_risk_by_usdt = 500USDT
 
-# Trading Settings
+# Please enter the percentage value for acceptable price volatility.
+# Example:
+# price_volatility = %3
+
+accepted_price_volatility = %%2
+
+# TRADING SETTINGS
 # Order type for dynamic coin trades (MARKET or LIMIT)
-dynamic_coin_order_type = MARKET
+order_type = MARKET
 
-# Chart Settings
-# Chart interval in minutes (1, 5, 15, 30, 60)
+# Please write only coin symbol with big letters
+favorite_coins = LTC, XRP, BTC, ETH, DOGE
 chart_interval = 1
-
-# Favorite Coins
-# Comma-separated list of coin symbols (without USDT)
-favorite_coins = BTC, ETH, ADA, DOT, SOL
+dynamic_coin = ADA
