@@ -11,6 +11,32 @@ A professional trading application for Binance cryptocurrency exchange with real
 - User preferences configuration
 - Professional GUI built with PySide6
 
+## 📸 Application Tour
+
+Here's a visual tour of the Binance Terminal features:
+
+### 1. Secure Entry & Initialization
+The application starts with a sleek splash screen while initializing secure connections, followed by a local authentication requirement.
+
+<p align="center">
+  <img src="assets/screenshots/splash_screen.png" alt="Application Initialization" width="45%" />
+  <img src="assets/screenshots/login.png" alt="Secure Login" width="45%" />
+</p>
+
+### 2. Main Dashboard
+The command center for your trading. It features real-time price monitoring, interactive charts, and direct access to your favorite trading pairs.
+
+<p align="center">
+  <img src="assets/screenshots/dashboard.png" alt="Main Dashboard Interface" width="100%" />
+</p>
+
+### 3. Configuration & Preferences
+Fully customizable experience. Adjust your risk management settings, UI preferences, and API connections directly from the settings panel.
+
+<p align="center">
+  <img src="assets/screenshots/settings.png" alt="Settings Panel" width="40%" />
+</p>
+
 ## ⚠️ Important Financial Disclaimer
 
 **WARNING: This is a financial trading application that involves real money and cryptocurrency trading.**
@@ -107,9 +133,7 @@ binance_terminal/
 │   └── trades
 ├── docs
 │   └── CONTRIBUTING.md
-├── .github
-│   └── workflows
-│       └── ci.yml
+
 ├── scripts
 │   ├── build.bat
 │   └── build_exe.py

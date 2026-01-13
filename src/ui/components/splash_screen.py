@@ -52,10 +52,10 @@ class ModernSplashScreen(QWidget):
         main_frame.setObjectName("mainFrame")
         main_frame.setStyleSheet("""
             QWidget#mainFrame {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #667eea, stop:1 #764ba2);
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #2b2b2b, stop:1 #1a1a1a);
                 border-radius: 20px;
-                border: 2px solid rgba(255, 255, 255, 0.2);
+                border: 1px solid #3d3d3d;
             }
         """)
 
@@ -71,8 +71,8 @@ class ModernSplashScreen(QWidget):
         icon_label.setFont(QFont("Segoe UI", 48, QFont.Bold))
         icon_label.setStyleSheet("""
             QLabel {
-                color: white;
-                background: rgba(255, 255, 255, 0.1);
+                color: #F0B90B;
+                background: rgba(255, 255, 255, 0.05);
                 border-radius: 40px;
                 padding: 20px;
                 min-width: 80px;
@@ -100,7 +100,7 @@ class ModernSplashScreen(QWidget):
         title_label.setFont(QFont("Segoe UI", 24, QFont.Bold))
         title_label.setStyleSheet("""
             QLabel {
-                color: white;
+                color: #E0E0E0;
                 background: transparent;
                 text-align: center;
                 padding-top: 10px; /* increased for extra gap */
@@ -114,7 +114,7 @@ class ModernSplashScreen(QWidget):
         subtitle_label.setFont(QFont("Segoe UI", 12))
         subtitle_label.setStyleSheet("""
             QLabel {
-                color: rgba(255, 255, 255, 0.8);
+                color: #888888;
                 background: transparent;
                 margin-top: 4px;
                 margin-bottom: 12px;
@@ -131,13 +131,13 @@ class ModernSplashScreen(QWidget):
         self.progress_bar.setStyleSheet("""
             QProgressBar {
                 border: none;
-                background: rgba(255, 255, 255, 0.2);
+                background: #333333;
                 border-radius: 8px;
                 height: 16px;
             }
             QProgressBar::chunk {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #00d4ff, stop:1 #090979);
+                    stop:0 #F0B90B, stop:1 #F8D12F);
                 border-radius: 8px;
             }
         """)
@@ -148,7 +148,7 @@ class ModernSplashScreen(QWidget):
         self.status_label.setFont(QFont("Segoe UI", 10))
         self.status_label.setStyleSheet("""
             QLabel {
-                color: rgba(255, 255, 255, 0.9);
+                color: #AAAAAA;
                 background: transparent;
                 margin-top: 5px;
             }
