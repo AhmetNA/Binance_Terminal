@@ -12,7 +12,7 @@ def move_window_to_top_center(window, parent=None, top_percent=0.15):
         parent: Ignored (kept for compatibility), effectively uses screen.
         top_percent: Float (0.0 - 1.0) indicating how far from top to place.
     """
-    def perform_move():
+    def perform_move(attempt=1):
         try:
             # Get the screen the window is associated with, or primary
             screen = window.screen()
@@ -35,32 +35,38 @@ def move_window_to_top_center(window, parent=None, top_percent=0.15):
                 QApplication.processEvents()
 
             # Calculate X to center horizontally
-            x = available_geom.x() + (available_geom.width() - width) // 2
+            target_x = available_geom.x() + (available_geom.width() - width) // 2
             
             # Calculate Y for top-offset
             # If window is very tall (> 80% screen height), force 5% margin
             screen_height = available_geom.height()
             if window.height() > (screen_height * 0.8):
-                y = available_geom.y() + int(screen_height * 0.05)
+                target_y = available_geom.y() + int(screen_height * 0.05)
             else:
-                y = available_geom.y() + int(screen_height * top_percent)
+                target_y = available_geom.y() + int(screen_height * top_percent)
                 
             # Ensure y is within bounds (never above screen top)
-            y = max(available_geom.y(), y)
+            target_y = max(available_geom.y(), target_y)
             
             # Apply move
-            window.move(x, y)
+            window.move(target_x, target_y)
+            
+            # Check if move was successful (tolerance of 50px for WM decorations)
+            current_pos = window.pos()
+            distance = ((current_pos.x() - target_x)**2 + (current_pos.y() - target_y)**2)**0.5
+            
+            if distance > 50 and attempt < 3:
+                # If we are far from target, try again with a delay
+                QTimer.singleShot(250 * attempt, lambda: perform_move(attempt + 1))
             
         except Exception:
             # Fail silently to avoid crashing app on geometry error
             pass
 
-    # Method 1: Execute immediate logic (works for Windows usually)
-    perform_move()
+    # Method 1: Execute immediate logic
+    perform_move(1)
     
     # Method 2: Delayed execution to override WM placement (Critical for Ubuntu/Wayland)
-    # 10ms is usually enough for the event loop to cycle once
-    QTimer.singleShot(10, perform_move)
-    
-    # Method 3: Secondary backup for slow WMs
-    QTimer.singleShot(100, perform_move)
+    # Increased delays to give WM time to settle
+    QTimer.singleShot(100, lambda: perform_move(1))
+    QTimer.singleShot(500, lambda: perform_move(1))

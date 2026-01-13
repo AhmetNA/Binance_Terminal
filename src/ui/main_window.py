@@ -41,6 +41,7 @@ from ui.components.chart_widget import (
     format_chart_wallet_text,
 )
 from ui.dialogs.settings_dialog import SettingsDialog
+from services.data_logger import get_data_logger
 
 # Chart imports
 import matplotlib.pyplot as plt
@@ -388,7 +389,7 @@ class MainWindow(QMainWindow):
 
             # Send message to terminal
             try:
-                status = (
+                status_str = (
                     "FILLED"
                     if order_paper.get("fills") and len(order_paper["fills"]) > 0
                     else order_paper.get("status", "PENDING")
@@ -400,9 +401,18 @@ class MainWindow(QMainWindow):
                     f"{amount_str} @ ${price:.2f} | "
                     f"Total: ${cost_or_received:.2f} | "
                     f"Balance: ${new_balance:.2f} | "
-                    f"Order Type: {order_type} | Status: {status}"
+                    f"Order Type: {order_type} | Status: {status_str}"
                 )
                 self.terminal_widget.append_message(message)
+                
+                # Log trade to file
+                get_data_logger().log_trade(
+                    order_data=order_paper,
+                    status=status_str,
+                    initial_balance=old_balance,
+                    final_balance=new_balance
+                )
+                
             except Exception as msg_error:
                 logging.error(f"Error creating terminal message: {msg_error}")
                 fallback_msg = f"[{action_type}] {operation} {symbol} completed | Balance: ${new_balance:.2f}"
@@ -1034,7 +1044,7 @@ class MainWindow(QMainWindow):
 # Backward compatibility functions removed - these were not being used in the codebase
 
 
-def initialize_gui():
+def initialize_gui(start_time=None):
     """Initialize the GUI with modular architecture."""
     try:
         logging.info("Initializing modular GUI...")
@@ -1148,7 +1158,11 @@ def initialize_gui():
                     )
                 else:
                     # Use normal client preparation (will ask for master password)
+                    import time
+                    pw_start = time.time()
                     client = prepare_client(gui_mode=True, parent_widget=splash)
+                    pw_end = time.time()
+                    password_duration = pw_end - pw_start
                     logging.info("Binance client prepared successfully")
                 
                 # If we get here without exception, break the loop
@@ -1254,6 +1268,15 @@ def initialize_gui():
         def _finish_startup():
             splash.close()
             window.show_and_focus()
+
+            # Log app readiness if start_time is provided
+            if start_time:
+                import time
+                ready_time = time.time()
+                # Get captured password duration or default to 0
+                pw_duration = password_duration if 'password_duration' in locals() else 0.0
+                get_data_logger().log_app_ready(start_time, ready_time, pw_duration)
+
             # Show status message in terminal instead of popup
             if hasattr(window, "terminal_widget"):
                 if getattr(window, "api_keys_valid", True):
@@ -1264,7 +1287,7 @@ def initialize_gui():
                     window.terminal_widget.append_message(
                         "⚠️ API keys invalid or connection failed. LIMITED MODE: Orders & balance disabled, prices still show. Go to Settings > Reset Credentials to re-enter keys, then restart."
                     )
-
+                    
         QTimer.singleShot(1000, _finish_startup)
 
         logging.info("Showing modular main window...")

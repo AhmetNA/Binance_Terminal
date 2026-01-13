@@ -26,6 +26,18 @@ def main():
     setup_logging()
     logger = get_main_logger()
     logger.info("Starting the application...")
+    
+    # Capture application start time
+    import time
+    app_start_time = time.time()
+
+    # Force X11 backend on Linux to fix window positioning on Wayland/Ubuntu
+    # This must be done before creating QApplication
+    if sys.platform.startswith("linux"):
+        # check if not already set to avoid overriding user preference if they set it explicitly
+        if "QT_QPA_PLATFORM" not in os.environ:
+            os.environ["QT_QPA_PLATFORM"] = "xcb"
+            logger.info("Forced QT_QPA_PLATFORM=xcb for window positioning fix")
 
     # Verify preferences are loaded correctly
     try:
@@ -60,7 +72,7 @@ def main():
         logger.debug("QApplication created")
 
         # Ana GUI'yi başlat
-        exit_code = initialize_gui()
+        exit_code = initialize_gui(start_time=app_start_time)
         logger.info(f"Application exited with code: {exit_code}")
 
         return exit_code

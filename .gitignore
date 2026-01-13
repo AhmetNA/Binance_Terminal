@@ -39,3 +39,12 @@ dist/
 todos.txt
 
 run.sh
+
+# Data klasörü yapılandırması
+data/**/*
+!data/**/
+!data/**/*.gitkeep
+
+# Config dosyaları (git update-index --assume-unchanged ile takip dışı bırakıldı)
+# config/fav_coins.json
+# config/fav_coins.json.backup
