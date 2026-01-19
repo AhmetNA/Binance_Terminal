@@ -82,7 +82,7 @@ class ConnectionPoolManager:
 
                 warnings.filterwarnings("ignore")
                 self.session._connector.close()
-            except:
+            except Exception:
                 pass
 
 

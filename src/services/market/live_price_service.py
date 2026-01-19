@@ -349,7 +349,7 @@ def on_open(ws_instance):
         )
         try:
             ws_instance.close()
-        except:
+        except Exception:
             pass
         return
 
@@ -481,7 +481,6 @@ def start_price_websocket():
     global SYMBOLS, websocket_starting, connection_active
 
     # For restart scenarios, allow override of existing connections
-    restart_mode = not connection_active and not websocket_starting
 
     # Prevent multiple simultaneous starts (unless it's a restart)
     if websocket_starting and connection_active:

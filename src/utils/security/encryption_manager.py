@@ -179,7 +179,7 @@ class EncryptionManager:
         try:
             decrypted = self.decrypt_data(encrypted_test, password)
             return decrypted == test_data
-        except:
+        except Exception:
             return False
 
 
@@ -225,7 +225,7 @@ if __name__ == "__main__":
         try:
             manager.decrypt_data(encrypted, "wrong_password")
             print("❌ Yanlış şifre testi başarısız!")
-        except:
+        except Exception:
             print("✅ Yanlış şifre testi başarılı!")
 
     except Exception as e:

@@ -168,6 +168,6 @@ def format_quantity_for_binance(quantity: float) -> str:
                 return formatted
             else:
                 return "0"
-        except:
+        except Exception:
             logging.error(f"Fallback formatting also failed for quantity: {quantity}")
             return "0"

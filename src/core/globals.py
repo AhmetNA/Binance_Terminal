@@ -20,3 +20,10 @@ DYNAMIC_COIN_KEY = "dynamic_coin"
 
 # Import paths for backwards compatibility
 from core.paths import FAV_COINS_FILE, PREFERENCES_FILE
+
+__all__ = [
+    "COINS_KEY",
+    "DYNAMIC_COIN_KEY",
+    "FAV_COINS_FILE",
+    "PREFERENCES_FILE",
+]

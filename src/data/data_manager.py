@@ -117,7 +117,6 @@ class DataManager:
         try:
             timestamp = datetime.datetime.now()
             date_str = timestamp.strftime("%Y-%m-%d")
-            time_str = timestamp.strftime("%H:%M:%S")
 
             # Add metadata
             portfolio_data["recorded_at"] = timestamp.isoformat()

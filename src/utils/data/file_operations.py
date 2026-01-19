@@ -103,7 +103,7 @@ def atomic_write_file(file_path, content):
         if safe_file_exists(temp_file):
             try:
                 os.remove(temp_file)
-            except:
+            except OSError:
                 pass
         logging.error(f"Error writing file atomically {file_path}: {e}")
         return False

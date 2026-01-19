@@ -13,7 +13,12 @@ def get_account_data(client=None):
         client = prepare_client()
 
     try:
-        account_info = client.get_account()
+        import time
+        t0 = time.time()
+        logging.debug("[PERF] Calling client.get_account()...")
+        # Increase recvWindow to 10000ms (10s) to handle slight time drift
+        account_info = client.get_account(recvWindow=10000)
+        logging.debug(f"[PERF] client.get_account() took {time.time() - t0:.4f}s")
         return account_info
     except Exception as e:
         logging.error(f"Error getting account data: {e}")

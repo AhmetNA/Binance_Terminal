@@ -12,13 +12,14 @@ def setup_logging(log_level=logging.INFO, log_to_file=True, log_to_console=True)
         log_to_file: Dosyaya log yazılsın mı
         log_to_console: Konsola log yazılsın mı
     """
+    from core.paths import LOGS_DIR
+    
     # Log dizinini oluştur
-    log_dir = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
-    os.makedirs(log_dir, exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
 
     # Log dosyası adı (tarih ile)
     log_filename = f"binance_terminal_{datetime.now().strftime('%Y%m%d')}.log"
-    log_file_path = os.path.join(log_dir, log_filename)
+    log_file_path = os.path.join(LOGS_DIR, log_filename)
 
     # Formatter
     formatter = logging.Formatter(

@@ -59,7 +59,7 @@ def _initialize_client_once(gui_mode=False, parent_widget=None):
                         QMessageBox.critical(
                             parent_widget, "API Connection Error", error_msg
                         )
-                    except:
+                    except Exception:
                         pass
                 print(error_msg)
                 logging.error(f"Error preparing Binance client: {e}")
@@ -71,7 +71,7 @@ def _initialize_client_once(gui_mode=False, parent_widget=None):
                     from PySide6.QtWidgets import QMessageBox
 
                     QMessageBox.critical(parent_widget, "Unexpected Error", error_msg)
-                except:
+                except Exception:
                     pass
             print(error_msg)
             logging.error(f"Error preparing Binance client: {e}")

@@ -144,7 +144,7 @@ class SecureStorage:
             return self.encryption_manager.verify_password(
                 secure_data["test_data"], secure_data["encrypted_test"], master_password
             )
-        except:
+        except Exception:
             return False
 
     def credentials_exist(self) -> bool:

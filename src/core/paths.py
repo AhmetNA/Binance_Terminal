@@ -31,8 +31,12 @@ def get_src_dir():
     return os.path.abspath(os.path.join(get_current_dir(), ".."))
 
 
+
 def get_project_root():
     """Proje kök dizininin yolunu döndürür."""
+    if getattr(sys, "frozen", False):
+        # In frozen mode, project root is the directory containing the executable
+        return os.path.dirname(sys.executable)
     return os.path.abspath(os.path.join(get_src_dir(), ".."))
 
 
@@ -49,10 +53,9 @@ def get_settings_dir():
     Settings/config dizininin yolunu döndürür.
     PyInstaller bundle için özel handling yapar.
     """
-    # Determine if running as a bundled executable
-    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        # Running in a PyInstaller bundle
-        return os.path.dirname(sys.executable)
+    if getattr(sys, "frozen", False):
+        # In frozen mode, config is in 'config' subdirectory next to executable
+        return os.path.join(PROJECT_ROOT, "config")
     else:
         # Running in a normal Python environment
         return os.path.join(PROJECT_ROOT, "config")
@@ -65,7 +68,12 @@ CONFIG_DIR = SETTINGS_DIR  # Alias for backwards compatibility
 # ===== DATA DIRECTORIES =====
 
 # Main data directory
-DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+if getattr(sys, "frozen", False):
+    # In frozen mode, keep data next to executable
+    DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+else:
+    # In dev mode, keep data in project root
+    DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 
 # Data subdirectories
 TRADES_DIR = os.path.join(DATA_DIR, "trades")
@@ -74,7 +82,7 @@ ANALYTICS_DIR = os.path.join(DATA_DIR, "analytics")
 
 # ===== LOG DIRECTORIES =====
 
-LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
+LOGS_DIR = os.path.join(DATA_DIR, "logs", "system_logs")
 
 # ===== ASSETS DIRECTORIES =====
 
@@ -97,7 +105,8 @@ DEBUG_LOG_FILE = os.path.join(LOGS_DIR, "binance_terminal_debug.log")
 BUGS_LOG_FILE = os.path.join(LOGS_DIR, "binance_terminal_bugs.log")
 
 # Root log file (legacy support)
-ROOT_LOG_FILE = os.path.join(PROJECT_ROOT, "binance_terminal.log")
+# In frozen mode, we don't want to write to root if possible, but if needed:
+ROOT_LOG_FILE = os.path.join(PROJECT_ROOT, "binance_terminal_root.log")
 
 # ===== ASSET FILES =====
 

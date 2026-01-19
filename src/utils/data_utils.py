@@ -285,7 +285,7 @@ def write_favorite_coins_to_json(data):
                 if os.path.exists(temp_file):
                     try:
                         os.remove(temp_file)
-                    except:
+                    except OSError:
                         pass
                 raise e
 

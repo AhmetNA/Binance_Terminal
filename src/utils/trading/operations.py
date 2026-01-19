@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Any, Optional
 
 # Import enums from models to avoid duplication
-from models.order_types import OrderSide, OrderType
+# Import enums from models to avoid duplication
 
 def validate_amount_type(amount_type: str) -> bool:
     """

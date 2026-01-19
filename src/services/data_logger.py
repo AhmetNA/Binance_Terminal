@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from core.paths import DATA_DIR
 
@@ -69,11 +69,11 @@ class DataLogger:
             timestamp = datetime.fromtimestamp(ready_time).isoformat()
             
             log_entry = {
+                "effective_startup_duration_seconds": effective_duration,
                 "event": "APP_READY",
                 "timestamp": timestamp,
                 "total_duration_seconds": total_duration,
                 "password_entry_duration_seconds": password_entry_duration,
-                "effective_startup_duration_seconds": effective_duration,
                 "start_timestamp": start_time,
                 "ready_timestamp": ready_time
             }

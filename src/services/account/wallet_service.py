@@ -8,6 +8,7 @@ import logging
 from services.binance_client import prepare_client
 from services.account.account_service import get_amountOf_asset
 from services.orders.market_order_service import get_current_price
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def get_coin_wallet_info(symbol, client=None):
@@ -103,7 +104,6 @@ def format_wallet_display_text(wallet_info):
     coin_symbol = wallet_info["coin_symbol"]
     amount = wallet_info["amount"]
     usdt_value = wallet_info["usdt_value"]
-    current_price = wallet_info["current_price"]
 
     if amount == 0:
         return f"Wallet: 0 {coin_symbol}"
@@ -140,3 +140,91 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(f"❌ Test failed: {e}")
+
+# --- WALLET CACHE IMPLEMENTATION ---
+
+class WalletCache:
+    """
+    Simple in-memory cache for wallet balances to avoid blocking API calls.
+    Stores {symbol: {'amount': float, 'usdt_value': float, ...}}
+    """
+    _instance = None
+    _data = {}
+    _initialized = False
+
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = WalletCache()
+        return cls._instance
+
+    def update(self, symbol, info):
+        """Update cache for a specific symbol."""
+        self._data[symbol] = info
+
+    def get(self, symbol):
+        """Get cached info for a symbol."""
+        return self._data.get(symbol)
+
+    def get_all(self):
+        return self._data
+
+    def clear(self):
+        self._data = {}
+        self._initialized = False
+
+def initialize_wallet_cache(client, symbols):
+    """
+    Populates the wallet cache for the given list of symbols.
+    Should be called at startup or in a background thread.
+    """
+    cache = WalletCache.get_instance()
+    logging.info(f"Initializing wallet cache for {len(symbols)} symbols...")
+    
+    count = 0
+    # Use ThreadPoolExecutor to fetch wallet info in parallel
+    # 10 workers is usually a safe number for light IO tasks like this
+    max_workers = min(10, len(symbols)) if symbols else 1
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Create a future for each symbol
+        future_to_symbol = {
+            executor.submit(get_coin_wallet_info, symbol, client): symbol 
+            for symbol in symbols
+        }
+        
+        for future in as_completed(future_to_symbol):
+            symbol = future_to_symbol[future]
+            try:
+                info = future.result()
+                cache.update(symbol, info)
+                count += 1
+            except Exception as e:
+                logging.error(f"Failed to cache wallet info for {symbol}: {e}")
+            
+    cache._initialized = True
+    logging.info(f"Wallet cache initialized with {count} items.")
+
+def update_wallet_cache_item(symbol, client=None):
+    """
+    Refreshes the cache for a single symbol (e.g., after a trade).
+    """
+    cache = WalletCache.get_instance()
+    info = get_coin_wallet_info(symbol, client)
+    cache.update(symbol, info)
+    return info
+
+def get_cached_wallet_info(symbol):
+    """
+    Retrieves wallet info from cache. Returns None if not found,
+    or a default 'empty' structure if preferred.
+    """
+    cache = WalletCache.get_instance()
+    cached = cache.get(symbol)
+    
+    if cached:
+        return cached
+    
+    # Fallback or indicate not cached
+    # For now, return None so the caller knows it's missing
+    return None

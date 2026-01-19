@@ -61,7 +61,7 @@ def round_to_step_size(quantity: float, step_size: float) -> float:
                 decimals = len(step_str.split(".")[1])
                 rounded_quantity = round(rounded_quantity, decimals)
             return rounded_quantity
-        except:
+        except Exception:
             return quantity
 
 
