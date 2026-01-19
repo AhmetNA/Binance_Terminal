@@ -37,6 +37,12 @@ Fully customizable experience. Adjust your risk management settings, UI preferen
   <img src="assets/screenshots/settings.png" alt="Settings Panel" width="40%" />
 </p>
 
+
+### 4. Trading Operations
+
+- **Double-Click Execution**: To prevent accidental trades, all buy/sell actions require a **double-click** to execute.
+- **Independent Validation**: You can execute trades immediately even if the wallet balance displayed on the coin info button hasn't updated yet. The trading engine verifies available balance in real-time independently of the UI display.
+
 ## ⚠️ Important Financial Disclaimer
 
 **WARNING: This is a financial trading application that involves real money and cryptocurrency trading.**
@@ -105,6 +111,28 @@ cp config/.env.example config/.env
 ```bash
 python src/main.py
 ```
+
+## Building from Source
+
+To create a standalone executable for Linux:
+
+1. Clone the repository:
+```bash
+git clone https://github.com/AhmetNA/binance-terminal.git
+cd binance-terminal
+```
+
+2. Run the build script:
+```bash
+chmod +x build_linux.sh
+./build_linux.sh
+```
+
+3. The executable will be created in `dist/binance-terminal/`. You can move this folder anywhere.
+   - Run via `dist/binance-terminal/binance-terminal`
+   - Or use the generated shortcut `dist/binance-terminal/BinanceTerminal.desktop`
+
+> **Note**: The build script intentionally excludes your personal `secure_credentials.json` to protect your API keys. You will need to re-enter them on the first run of the built application.
 
 ## Configuration
 

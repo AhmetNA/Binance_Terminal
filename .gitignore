@@ -3,13 +3,17 @@ __pycache__/
 *.pyc
 *.egg-info/
 
+# Pytest cache
+.pytest_cache/
+**/.pytest_cache/
+
 # Virtual environment
 venv/
 env/
 .venv/
 .env/
 
-.github
+
 .vscode
 
 # Ortam değişkenleri
@@ -40,12 +44,23 @@ todos.txt
 
 run.sh
 
-# Data klasörü yapılandırması
-data/**/*
-!data/**/
-!data/**/*.gitkeep
+todo.txt
 
-# Config dosyaları (git update-index --assume-unchanged ile takip dışı bırakıldı)
+# Local build script
+buildToMyLinux.sh
+Binance-Terminal.spec
+
+# Security / encrypted credentials (must not be committed)
 config/secure_credentials.json
-# config/fav_coins.json
-# config/fav_coins.json.backup
+.ruff_cache/
+src/.ruff_cache/
+
+# Data directory - include folders but exclude JSON files
+data/**/*.json
+!data/*/
+!data/
+
+/.github/copilot-instructions.md
+
+# Type Checking
+.mypy_cache/
