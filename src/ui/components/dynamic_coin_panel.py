@@ -108,10 +108,13 @@ class DynamicCoinPanel(BaseComponent):
             self.handle_error(e, "Error creating dynamic coin trading buttons")
 
     def _create_order_button(self, text, style, operation_type):
-        """Create a trading order button."""
-        btn = QPushButton(text)
+        """Create a trading order button with double-click safety."""
+        from ui.components.safe_button import SafeButton
+        
+        btn = SafeButton(text)
         btn.setStyleSheet(style)
-        btn.clicked.connect(lambda: self._handle_order_button(operation_type))
+        # Connect to doubleClicked for safety
+        btn.doubleClicked.connect(lambda: self._handle_order_button(operation_type))
         return btn
 
     def _handle_order_button(self, operation_type):
@@ -124,13 +127,23 @@ class DynamicCoinPanel(BaseComponent):
         self.logger.debug("Dynamic coin details requested")
         self.coin_details_requested.emit(coin_button)
 
-    def update_coin_button(self, symbol, price):
+    def update_coin_button(self, symbol, price, wallet_value=None):
         """Update the dynamic coin button with new data."""
         try:
             if self.coin_button:
-                new_text = f"{symbol}\n{price}"
+                # Format wallet value string
+                if wallet_value is not None and wallet_value > 0:
+                     val_str = f"~${wallet_value:.2f}"
+                else:
+                     val_str = "~$0.00"
+
+                # New 3-line format: Value \n Symbol \n Price
+                new_text = f"{val_str}\n{symbol}\n{price}"
+
                 if self.coin_button.text() != new_text:
                     self.coin_button.setText(new_text)
+                    self.coin_button.setProperty("symbol", symbol)
+                    self.coin_button.setToolTip(f"Holding Value: {val_str}\nCurrent Price: {price}")
         except Exception as e:
             self.handle_error(e, "Error updating dynamic coin button")
 

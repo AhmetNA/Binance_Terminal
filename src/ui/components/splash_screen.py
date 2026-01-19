@@ -215,6 +215,11 @@ class ModernSplashScreen(QWidget):
         # Kısa bir gecikme sonra kapat
         QTimer.singleShot(800, self.close)
 
+    def stop_animation(self):
+        """Stop auth-loading animation to allow manual control"""
+        if hasattr(self, "progress_timer") and self.progress_timer.isActive():
+            self.progress_timer.stop()
+
 
 def show_splash_screen():
     """Show splash screen"""

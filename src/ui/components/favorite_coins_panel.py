@@ -109,10 +109,13 @@ class FavoriteCoinPanel(BaseComponent):
             self.handle_error(e, "Error creating trading buttons")
 
     def _create_order_button(self, text, style, operation_type, coin_index):
-        """Create a trading order button."""
-        btn = QPushButton(text)
+        """Create a trading order button with double-click safety."""
+        from ui.components.safe_button import SafeButton
+        
+        btn = SafeButton(text)
         btn.setStyleSheet(style)
-        btn.clicked.connect(
+        # Connect to doubleClicked for safety
+        btn.doubleClicked.connect(
             lambda: self._handle_order_button(operation_type, coin_index)
         )
         return btn
@@ -134,14 +137,26 @@ class FavoriteCoinPanel(BaseComponent):
         self.logger.debug("Coin details requested")
         self.coin_details_requested.emit(coin_button)
 
-    def update_coin_button(self, index, symbol, price):
+    def update_coin_button(self, index, symbol, price, wallet_value=None):
         """Update a specific coin button with new data."""
         try:
             if 0 <= index < len(self.coin_buttons):
                 button = self.coin_buttons[index]
-                new_text = f"{symbol}\n{price}"
+                
+                # Format wallet value string
+                if wallet_value is not None and wallet_value > 0:
+                     val_str = f"~${wallet_value:.2f}"
+                else:
+                     val_str = "~$0.00"
+
+                # New 3-line format: Value \n Symbol \n Price
+                new_text = f"{val_str}\n{symbol}\n{price}"
+                
                 if button.text() != new_text:
                     button.setText(new_text)
+                    button.setProperty("symbol", symbol)
+                    # Optional: Add tooltip for exact value
+                    button.setToolTip(f"Holding Value: {val_str}\nCurrent Price: {price}")
         except Exception as e:
             self.handle_error(e, f"Error updating coin button {index}")
 

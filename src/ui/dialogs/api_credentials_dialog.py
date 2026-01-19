@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QFrame,
-    QApplication,
     QCheckBox,
 )
 from PySide6.QtCore import Qt

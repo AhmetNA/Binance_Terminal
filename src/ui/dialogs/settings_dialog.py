@@ -35,6 +35,21 @@ from services.market import set_dynamic_coin_symbol, subscribe_to_dynamic_coin
 from utils.symbols import process_user_coin_input
 
 
+class ClickableLabel(QLabel):
+    """A QLabel that acts like a clickable button/link."""
+
+    clicked = Signal()
+
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mouseReleaseEvent(event)
+
+
 class SettingsDialog(QDialog):
     """Settings dialog for configuring application preferences."""
 
@@ -694,10 +709,11 @@ class SettingsDialog(QDialog):
             button_layout.addStretch()
 
             # Reset credentials button (appears left of save)
-            btn_reset = QPushButton("Reset Credentials")
-            btn_reset.setStyleSheet(SAVE_BUTTON_STYLE)
-            btn_reset.setMinimumHeight(30)
-            btn_reset.setMinimumWidth(140)
+            # Changed to clickable label as requested - Bold Red Text
+            btn_reset = ClickableLabel("Reset Credentials")
+            btn_reset.setStyleSheet("color: red; font-weight: bold; font-size: 11px; padding: 5px;")
+            # btn_reset.setMinimumHeight(30) # Label is smaller naturally
+            # btn_reset.setMinimumWidth(140)
             btn_reset.clicked.connect(self._reset_credentials_securely)
             button_layout.addWidget(btn_reset)
 

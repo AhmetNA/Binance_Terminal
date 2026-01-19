@@ -6,37 +6,35 @@ Contains all the panel and container styling definitions.
 # Main panel styles
 FAVORITE_COINS_PANEL_STYLE = """
     QGroupBox {
-        background-color: #696969;
-        border: 1px solid gray;
+        background-color: #2D3748;
+        border: 1px solid #4A5568;
         border-radius: 15px;
     }
 """
 
 DYNAMIC_COIN_PANEL_STYLE = """
     QGroupBox {
-        background-color: #696969;
-        border: 1px solid gray;
+        background-color: #2D3748;
+        border: 1px solid #4A5568;
         border-radius: 15px;
     }
 """
 
 WALLET_FRAME_STYLE = """
     QFrame {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-            stop:0 #1A1A2E, stop:1 #16213E);
+        background-color: #1A202C;
         color: #E8E8E8;
         border-radius: 15px;
-        border: 2px solid #0F3460;
+        border: 2px solid #4A5568;
     }
 """
 
 COIN_ENTRY_FRAME_STYLE = """
     QFrame {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-            stop:0 #1A1A2E, stop:1 #16213E);
+        background-color: #1A202C;
         color: #E8E8E8;
         border-radius: 12px;
-        border: 1px solid #0F3460;
+        border: 1px solid #4A5568;
     }
 """
 
@@ -79,15 +77,15 @@ COIN_INPUT_STYLE = """
         font-size: 12px; 
         height: 28px;
         min-height: 28px;
-        background-color: #16213E;
+        background-color: #2D3748;
         color: #E8E8E8;
-        border: 1px solid #533483;
+        border: 1px solid #4A5568;
         border-radius: 6px;
         padding: 4px 8px;
     }
     QLineEdit:focus {
-        border: 1px solid #E94560;
-        background-color: #1A1A2E;
+        border: 1px solid #3182CE;
+        background-color: #2D3748;
     }
 """
 
@@ -95,16 +93,16 @@ SETTINGS_INPUT_STYLE = """
     QLineEdit {
         font-size: 11px;
         height: 25px;
-        background-color: #16213E;
+        background-color: #2D3748;
         color: #E8E8E8;
-        border: 1px solid #533483;
+        border: 1px solid #4A5568;
         border-radius: 4px;
         padding: 4px;
         margin: 2px 0;
     }
     QLineEdit:focus {
-        border: 1px solid #E94560;
-        background-color: #1A1A2E;
+        border: 1px solid #3182CE;
+        background-color: #2D3748;
     }
 """
 
@@ -116,7 +114,7 @@ TERMINAL_STYLE = """
         border-radius: 8px;
         padding: 5px;
         font-family: Consolas, monospace;
-        font-size: 11px;
+        font-size: 10px;
         font-weight: bold;
     }
 """
@@ -135,18 +133,18 @@ class PanelSizes:
     """Common panel size constants."""
 
     FAVORITE_COINS_MIN_WIDTH = 430
-    FAVORITE_COINS_MIN_HEIGHT = 220
+    FAVORITE_COINS_MIN_HEIGHT = 260
 
     DYNAMIC_COIN_MIN_WIDTH = 100
-    DYNAMIC_COIN_MIN_HEIGHT = 20
+    DYNAMIC_COIN_MIN_HEIGHT = 60
 
     WALLET_FRAME_WIDTH = 200
-    WALLET_FRAME_HEIGHT = 95
+    WALLET_FRAME_HEIGHT = 125
 
     COIN_ENTRY_FRAME_WIDTH = 200
     COIN_ENTRY_FRAME_HEIGHT = 120
 
-    TERMINAL_HEIGHT = 180
+    TERMINAL_HEIGHT = 140
 
     SETTINGS_BUTTON_WIDTH = 75
     SETTINGS_BUTTON_HEIGHT = 28
@@ -161,14 +159,14 @@ class LayoutSpacing:
     FAV_COIN_MARGIN = 3
     FAV_COIN_SPACING = 3
 
-    DYN_COIN_MARGIN = 5
-    DYN_COIN_SPACING = 8
+    DYN_COIN_MARGIN = 3
+    DYN_COIN_SPACING = 3
     DYN_COIN_EXTRA_SPACING = 20
 
     RIGHT_PANEL_SPACING = 5
 
     WALLET_MARGIN = 8
-    WALLET_SPACING = 2
+    WALLET_SPACING = 15
 
     ENTRY_MARGIN = 8
     ENTRY_SPACING = 4

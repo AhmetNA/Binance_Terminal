@@ -69,7 +69,7 @@ class CoinEntryPanel(BaseComponent):
     def _create_entry_label(self):
         """Create the entry instruction label."""
         try:
-            self.entry_label = QLabel("Enter coin")
+            self.entry_label = QLabel("Search Coin")
             self.entry_label.setAlignment(Qt.AlignCenter)
             self.entry_label.setStyleSheet(ENTRY_LABEL_STYLE)
             self.layout.addWidget(self.entry_label)

@@ -447,7 +447,7 @@ class MasterPasswordDialog(QDialog):
         
         # Add buttons
         reset_btn = msg_box.addButton("Reset & Re-enter Keys", QMessageBox.DestructiveRole)
-        cancel_btn = msg_box.addButton(QMessageBox.Cancel)
+        msg_box.addButton(QMessageBox.Cancel)
         
         # Modern style matching app theme
         msg_box.setStyleSheet("""

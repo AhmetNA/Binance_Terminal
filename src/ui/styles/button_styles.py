@@ -14,7 +14,7 @@ HARD_BUY_STYLE = """
         font-weight: bold; 
     }
     QPushButton:hover { 
-        background-color: blue; 
+        background-color: #3182CE; 
     }
 """
 
@@ -65,7 +65,7 @@ COIN_LABEL_STYLE = """
         background-color: gray; 
         color: white; 
         border-radius: 6px; 
-        min-height: 45px; 
+        min-height: 80px; 
         font-size: 11px; 
         font-weight: bold; 
     }
@@ -80,7 +80,7 @@ DYN_HARD_BUY_STYLE = """
         background-color: darkgreen; 
         color: white; 
         border-radius: 8px; 
-        min-height: 28px; 
+        min-height: 25px; 
         font-size: 12px; 
         font-weight: bold; 
     }
@@ -94,7 +94,7 @@ DYN_SOFT_BUY_STYLE = """
         background-color: #089000; 
         color: white; 
         border-radius: 8px; 
-        min-height: 28px; 
+        min-height: 25px; 
         font-size: 12px; 
         font-weight: bold; 
     }
@@ -108,7 +108,7 @@ DYN_SOFT_SELL_STYLE = """
         background-color: #800000; 
         color: white; 
         border-radius: 8px; 
-        min-height: 28px; 
+        min-height: 25px; 
         font-size: 12px; 
         font-weight: bold; 
     }
@@ -122,7 +122,7 @@ DYN_HARD_SELL_STYLE = """
         background-color: #400000; 
         color: white; 
         border-radius: 8px; 
-        min-height: 28px; 
+        min-height: 25px; 
         font-size: 12px; 
         font-weight: bold; 
     }
@@ -136,7 +136,7 @@ DYN_COIN_LABEL_STYLE = """
         background-color: gray; 
         color: white; 
         border-radius: 8px; 
-        min-height: 55px; 
+        min-height: 80px; 
         font-size: 11px; 
         font-weight: bold; 
     }
@@ -148,33 +148,29 @@ DYN_COIN_LABEL_STYLE = """
 # Settings and utility button styles
 SETTINGS_BUTTON_STYLE = """
     QPushButton {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-            stop:0 #0F3460, stop:1 #16213E);
+        background-color: #2C5282;
         color: #E8E8E8;
-        border: 1px solid #533483;
+        border: 1px solid #4A5568;
         border-radius: 8px;
         font-size: 11px; 
         font-weight: bold;
         padding: 3px;
     }
     QPushButton:hover {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-            stop:0 #533483, stop:1 #0F3460);
-        border: 1px solid #E94560;
+        background-color: #2B6CB0;
+        border: 1px solid #CBD5E0;
     }
     QPushButton:pressed {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-            stop:0 #16213E, stop:1 #1A1A2E);
-        border: 1px solid #533483;
+        background-color: #2A4365;
+        border: 1px solid #4A5568;
     }
 """
 
 SUBMIT_BUTTON_STYLE = """
     QPushButton { 
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-            stop:0 #0F3460, stop:1 #16213E);
+        background-color: #2C5282;
         color: #E8E8E8; 
-        border: 1px solid #533483;
+        border: 1px solid #4A5568;
         border-radius: 6px; 
         font-size: 11px; 
         height: 26px; 
@@ -183,13 +179,11 @@ SUBMIT_BUTTON_STYLE = """
         padding: 3px;
     }
     QPushButton:hover { 
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-            stop:0 #533483, stop:1 #0F3460);
-        border: 1px solid #E94560;
+        background-color: #2B6CB0;
+        border: 1px solid #CBD5E0;
     }
     QPushButton:pressed {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-            stop:0 #16213E, stop:1 #1A1A2E);
+        background-color: #2A4365;
     }
 """
 

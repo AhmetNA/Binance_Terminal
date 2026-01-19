@@ -17,6 +17,7 @@ from core.paths import (
 
 # Import services
 from services.binance_client import prepare_client
+from services.account.wallet_service import initialize_wallet_cache, update_wallet_cache_item
 from services.account import retrieve_usdt_balance
 from services.orders.order_service import make_order
 from utils.data import load_fav_coins
@@ -35,11 +36,6 @@ from ui.components import (
     CoinEntryPanel,
     TerminalWidget,
 )
-from ui.components.chart_widget import (
-    get_chart_data,
-    get_wallet_info_for_chart,
-    format_chart_wallet_text,
-)
 from ui.dialogs.settings_dialog import SettingsDialog
 from services.data_logger import get_data_logger
 
@@ -56,7 +52,99 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 from PySide6.QtGui import QIcon, QKeyEvent
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QThread, Signal
+
+class WalletWorker(QThread):
+    """Worker thread for fetching wallet balance."""
+    balance_updated = Signal(float)
+    error_occurred = Signal(str)
+
+    def __init__(self, client):
+        super().__init__()
+        self.client = client
+
+    def run(self):
+        try:
+            balance = retrieve_usdt_balance(self.client)
+            self.balance_updated.emit(balance)
+        except Exception as e:
+            self.error_occurred.emit(str(e))
+
+class OrderWorker(QThread):
+    """Worker thread for executing orders."""
+    order_completed = Signal(dict, float, float, str, str) # order_data, old_balance, new_balance, operation_type, symbol
+    log_message = Signal(str)
+    error_occurred = Signal(str)
+
+    def __init__(self, client, operation_type, symbol, order_type):
+        super().__init__()
+        self.client = client
+        self.operation_type = operation_type
+        self.symbol = symbol
+        self.order_type = order_type
+
+    def run(self):
+        try:
+            # Helper for thread-safe logging from make_order
+            def worker_callback(msg):
+                self.log_message.emit(msg)
+
+            # Get initial balance
+            old_balance = retrieve_usdt_balance(self.client)
+            
+            # Make order
+            order_paper = make_order(
+                Style=self.operation_type,
+                Symbol=self.symbol,
+                order_type=self.order_type,
+                limit_price=None,
+                amount_or_percentage=None,
+                amount_type="percentage",
+                terminal_callback=worker_callback,
+            )
+            
+            # Get final balance
+            new_balance = retrieve_usdt_balance(self.client)
+            
+            self.order_completed.emit(order_paper, old_balance, new_balance, self.operation_type, self.symbol)
+            
+        except Exception as e:
+            self.error_occurred.emit(str(e))
+
+class ChartDataWorker(QThread):
+    """Worker thread for fetching chart data."""
+    data_ready = Signal(object, str, str) # dataframe, symbol, interval
+    error_occurred = Signal(str)
+
+    def __init__(self, symbol, interval):
+        super().__init__()
+        self.symbol = symbol
+        self.interval = interval
+
+    def run(self):
+        try:
+            from ui.components.chart_widget import get_chart_data
+            df = get_chart_data(self.symbol)
+            self.data_ready.emit(df, self.symbol, self.interval)
+        except Exception as e:
+            self.error_occurred.emit(str(e))
+
+class InitialCacheWorker(QThread):
+    """Worker to initialize wallet cache at startup."""
+    finished = Signal()
+    
+    def __init__(self, client, symbols):
+        super().__init__()
+        self.client = client
+        self.symbols = symbols
+        
+    def run(self):
+        try:
+            initialize_wallet_cache(self.client, self.symbols)
+            self.finished.emit()
+        except Exception as e:
+            logging.error(f"Cache init failed: {e}")
+
 
 
 class MainWindow(QMainWindow):
@@ -80,6 +168,9 @@ class MainWindow(QMainWindow):
             # WebSocket restart kontrolü için flag
             self.websocket_restarting = False
 
+            # List to keep track of active order workers
+            self.active_order_workers = []
+
             # Set window size and position
             self._setup_window_geometry()
 
@@ -95,11 +186,34 @@ class MainWindow(QMainWindow):
             # Setup timers
             self.setup_timers()
 
+            # Initialize Wallet Cache in background
+            self._init_wallet_cache()
+
+            logging.info("MainWindow: Modular initialization completed successfully")
+
             logging.info("MainWindow: Modular initialization completed successfully")
 
         except Exception as e:
             logging.exception(f"MainWindow: Error during initialization: {e}")
             self._create_error_interface(e)
+
+    def _init_wallet_cache(self):
+        """Start background worker to initialize wallet cache."""
+        try:
+            data = load_fav_coins()
+            symbols = []
+            if "coins" in data:
+                symbols.extend([c["symbol"] for c in data["coins"] if "symbol" in c])
+            if "dynamic_coin" in data and data["dynamic_coin"]:
+                symbols.append(data["dynamic_coin"][0]["symbol"])
+            
+            # Make unique
+            symbols = list(set(symbols))
+            
+            self.cache_worker = InitialCacheWorker(self.client, symbols)
+            self.cache_worker.start()
+        except Exception as e:
+            logging.error(f"Error starting cache worker: {e}")
 
     def _setup_window_geometry(self):
         """Setup window size and position (Top-Mid)."""
@@ -255,10 +369,14 @@ class MainWindow(QMainWindow):
         """Setup the right side panels (wallet and coin entry)."""
         try:
             right_side_layout = QVBoxLayout()
+            right_side_layout.setContentsMargins(0, 0, 0, 0)
             right_side_layout.setSpacing(5)
 
             # Add wallet panel
             right_side_layout.addWidget(self.wallet_panel.get_widget())
+            
+            # Add spacer to push search panel to bottom
+            right_side_layout.addStretch()
 
             # Add coin entry panel
             right_side_layout.addWidget(self.coin_entry_panel.get_widget())
@@ -315,156 +433,143 @@ class MainWindow(QMainWindow):
                 self.terminal_widget.append_message(f"❌ {error_msg}")
                 return
 
-            old_balance = retrieve_usdt_balance(self.client)
+            # Retrieve symbol and validate
+            symbol = self._retrieve_coin_symbol(coin_index)
+            if not symbol:
+                error_msg = f"Could not retrieve valid symbol for coin {coin_index}"
+                logging.error(error_msg)
+                self.terminal_widget.append_message(f"❌ {error_msg}")
+                return
 
-            # Get order type preference from settings - applies to all coins
+            # Get order type preference
             from config.preferences_service import get_order_type_preference
-
             order_type = get_order_type_preference()
 
-            # Log which coin type and order type is being used
+            # Log start
             if coin_index == DYNAMIC_COIN_INDEX:
                 logging.info(f"Using {order_type} order type for dynamic coin {symbol}")
             else:
-                logging.info(
-                    f"Using {order_type} order type for favorite coin {symbol}"
-                )
+                logging.info(f"Using {order_type} order type for favorite coin {symbol}")
 
-            # Terminal callback function to send messages to terminal widget
-            def terminal_callback(message):
-                if hasattr(self, "terminal_widget"):
-                    self.terminal_widget.append_message(message)
+            # Create and start worker
+            # Create and start NEW worker for this specific order
+            self.terminal_widget.append_message(f"⏳ Processing {operation_type} for {symbol}...")
+            
+            # Create new worker instance
+            worker = OrderWorker(self.client, operation_type, symbol, order_type)
+            
+            # Connect signals
+            worker.order_completed.connect(self._on_order_completed)
+            worker.log_message.connect(self.terminal_widget.append_message)
+            worker.error_occurred.connect(lambda e: self.terminal_widget.append_message(f"❌ Error: {e}"))
+            
+            # Connect finished signal to cleanup
+            # We use a default argument in the lambda to capture the specific worker instance
+            worker.finished.connect(lambda w=worker: self._cleanup_worker(w))
+            
+            # Add to active list
+            self.active_order_workers.append(worker)
+            
+            # Start
+            worker.start()
 
-            order_paper = make_order(
-                Style=operation_type,
-                Symbol=symbol,
-                order_type=order_type,
-                limit_price=None,
-                amount_or_percentage=None,  # Will use preferences default
-                amount_type="percentage",  # Default to percentage
-                terminal_callback=terminal_callback,
-            )
-            # Log the order response for debugging
-            logging.debug(
-                f"Order response for {operation_type} {symbol}: {order_paper}"
-            )
+        except Exception as e:
+            self.terminal_widget.append_message(f"❌ Error starting order: {e}")
+            logging.error(f"Error preparing order: {e}")
 
+    def _cleanup_worker(self, worker):
+        """Remove worker from active list when finished."""
+        try:
+            if worker in self.active_order_workers:
+                self.active_order_workers.remove(worker)
+                worker.deleteLater()
+                # logging.debug(f"Order worker cleaned up. Remaining: {len(self.active_order_workers)}")
+        except Exception as e:
+            logging.error(f"Error cleaning up worker: {e}")
+
+    def _on_order_completed(self, order_paper, old_balance, new_balance, operation_type, symbol):
+        """Handle completion of order from worker."""
+        try:
             # Handle both filled and unfilled orders safely
             try:
                 if order_paper.get("fills") and len(order_paper["fills"]) > 0:
-                    # Order was filled (market orders or immediately filled limit orders)
                     amount = float(order_paper["fills"][0]["qty"])
                     price = float(order_paper["fills"][0]["price"])
-                    cost_or_received = float(
-                        order_paper.get("cummulativeQuoteQty", amount * price)
-                    )
-                    logging.debug(
-                        f"Using filled order data: amount={amount}, price={price}, cost={cost_or_received}"
-                    )
+                    cost_or_received = float(order_paper.get("cummulativeQuoteQty", amount * price))
                 else:
-                    # Order not filled yet (limit orders waiting to be filled)
                     amount = float(order_paper.get("origQty", 0))
-                    price = float(order_paper.get("price", 0))
+                    price = float(order_paper.get("price", 0)) if "price" in order_paper else 0.0
                     cost_or_received = amount * price
-                    logging.info(
-                        f"Limit order placed but not filled yet: {amount} {symbol} @ ${price}"
-                    )
-            except (ValueError, KeyError, TypeError) as parse_error:
-                logging.error(f"Error parsing order response: {parse_error}")
-                logging.error(f"Order response structure: {order_paper}")
-                # Use fallback values
+            except (ValueError, KeyError, TypeError):
                 amount = 0.0
                 price = 0.0
                 cost_or_received = 0.0
 
-            new_balance = retrieve_usdt_balance(self.client)
-
-            if "Buy" in operation_type:
-                actual_diff = old_balance - new_balance
-            else:
-                actual_diff = new_balance - old_balance
-
             operation = "BUY" if "Buy" in operation_type else "SELL"
             action_type = "H" if "Hard" in operation_type else "S"
+            
+            # Determine order type for display
+            from config.preferences_service import get_order_type_preference
+            order_type_str = get_order_type_preference()
 
-            # Send message to terminal
+            status_str = "FILLED" if order_paper.get("fills") else order_paper.get("status", "PENDING")
+            amount_str = f"{amount:.5f}".rstrip("0").rstrip(".")
+            
+            message = (
+                f"[{action_type}] {operation} {symbol} | "
+                f"{amount_str} @ ${price:.2f} | "
+                f"Total: ${cost_or_received:.2f} | "
+                f"Balance: ${new_balance:.2f} | "
+                f"Order Type: {order_type_str} | Status: {status_str}"
+            )
+            self.terminal_widget.append_message(message)
+            
+            # Log trade to file
+            get_data_logger().log_trade(
+                order_data=order_paper,
+                status=status_str,
+                initial_balance=old_balance,
+                final_balance=new_balance
+            )
+            
+            # Trigger immediate wallet update
+            self.wallet_panel.update_wallet_balance(new_balance)
+
+            # Update cache for this symbol
             try:
-                status_str = (
-                    "FILLED"
-                    if order_paper.get("fills") and len(order_paper["fills"]) > 0
-                    else order_paper.get("status", "PENDING")
-                )
-                # Use more decimal places for amount to show small cryptocurrency quantities correctly
-                amount_str = f"{amount:.5f}".rstrip("0").rstrip(".")
-                message = (
-                    f"[{action_type}] {operation} {symbol} | "
-                    f"{amount_str} @ ${price:.2f} | "
-                    f"Total: ${cost_or_received:.2f} | "
-                    f"Balance: ${new_balance:.2f} | "
-                    f"Order Type: {order_type} | Status: {status_str}"
-                )
-                self.terminal_widget.append_message(message)
-                
-                # Log trade to file
-                get_data_logger().log_trade(
-                    order_data=order_paper,
-                    status=status_str,
-                    initial_balance=old_balance,
-                    final_balance=new_balance
-                )
-                
-            except Exception as msg_error:
-                logging.error(f"Error creating terminal message: {msg_error}")
-                fallback_msg = f"[{action_type}] {operation} {symbol} completed | Balance: ${new_balance:.2f}"
-                self.terminal_widget.append_message(fallback_msg)
+                update_wallet_cache_item(symbol, self.client)
+            except Exception as e:
+                logging.error(f"Failed to update cache after trade: {e}")
 
         except Exception as e:
-            # Get coin symbol for better error message
-            try:
-                symbol = self._retrieve_coin_symbol(coin_index)
-                coin_name = (
-                    symbol.replace("USDT", "") if symbol else f"coin {coin_index}"
-                )
-
-                # Convert operation type to user-friendly format
-                friendly_operation = {
-                    "Soft_Buy": "Buy",
-                    "Hard_Buy": "Buy",
-                    "Soft_Sell": "Sell",
-                    "Hard_Sell": "Sell",
-                }.get(operation_type, operation_type)
-
-                error_msg = f"❌ {friendly_operation} order failed for {coin_name}: {e}"
-            except:
-                error_msg = f"❌ Order failed for coin {coin_index}: {e}"
-
-            self.terminal_widget.append_message(error_msg)
-            logging.error(error_msg)
-
-            # Additional debugging info
-            try:
-                data = load_fav_coins()
-                coin_count = len(data.get("coins", []))
-                logging.error(
-                    f"Debug info - Current coin count: {coin_count}, Requested index: {coin_index}"
-                )
-                logging.error(
-                    f"Debug info - Available coins: {[coin.get('name', 'Unknown') for coin in data.get('coins', [])]}"
-                )
-            except Exception as debug_e:
-                logging.error(
-                    f"Debug info - Could not load coin data for debugging: {debug_e}"
-                )
+            logging.error(f"Error processing order completion: {e}")
+            self.terminal_widget.append_message(f"⚠️ Order finished but display error: {e}")
 
     def _handle_coin_details(self, coin_button):
         """Handle coin details requests from components."""
         try:
-            display_symbol = coin_button.text().split("\n")[0]
-            symbol = (
-                display_symbol.replace("-", "")
-                if "-" in display_symbol
-                else display_symbol
-            )
+            # Check if a chart worker is already running to prevent crashes/concurrency issues
+            if hasattr(self, "chart_worker") and self.chart_worker.isRunning():
+                self.terminal_widget.append_message("⚠️ Request ignored: correct coin info usage is needed one at a time.")
+                logging.info(f"Ignored coin details request for {coin_button.text()} - worker already running")
+                return
+
+            # Try to get symbol from property first (more robust)
+            symbol = coin_button.property("symbol")
+            
+            # Fallback to text parsing if property not found (legacy support)
+            if not symbol:
+                text_parts = coin_button.text().split("\n")
+                if len(text_parts) >= 2:
+                    # New format: Value \n Symbol \n Price
+                    symbol = text_parts[1]
+                else:
+                    # Old format: Symbol \n Price
+                    symbol = text_parts[0]
+
+            # Sanitize symbol (remove hyphens, ensure uppercase)
+            if symbol:
+                symbol = symbol.replace("-", "").upper()
 
             # Get chart interval from preferences
             from core.paths import PREFERENCES_FILE
@@ -479,18 +584,25 @@ class MainWindow(QMainWindow):
             except Exception:
                 interval = "1"
 
-            # Generate and show chart
-            self._show_coin_chart(symbol, interval)
+            # Generate and show chart ASYNC
+            self.terminal_widget.append_message(f"⏳ Fetching data for {symbol}...")
+            
+            self.chart_worker = ChartDataWorker(symbol, interval)
+            self.chart_worker.data_ready.connect(self._show_coin_chart)
+            self.chart_worker.error_occurred.connect(lambda e: self.terminal_widget.append_message(f"❌ Chart Error: {e}"))
+            self.chart_worker.start()
 
         except Exception as e:
-            error_msg = f"Error displaying chart: {e}"
+            error_msg = f"Error preparing chart: {e}"
             self.terminal_widget.append_message(error_msg)
             logging.error(error_msg)
 
-    def _show_coin_chart(self, symbol, interval):
-        """Show candlestick chart for a coin."""
+    def _show_coin_chart(self, df, symbol, interval):
+        """Show candlestick chart for a coin with pre-fetched data."""
         try:
-            df = get_chart_data(symbol)
+            # df is now passed in, no need to fetch
+            # df = get_chart_data(symbol) BEFORE
+            
             first_price = df["Close"].iloc[0]
             last_price = df["Close"].iloc[-1]
             price_change_pct = ((last_price - first_price) / first_price) * 100
@@ -535,33 +647,38 @@ class MainWindow(QMainWindow):
                 bbox=price_props,
             )
 
-            # Get wallet information for the coin
-            wallet_info = get_wallet_info_for_chart(symbol)
-            wallet_text = format_chart_wallet_text(wallet_info)
 
-            # Add wallet info box (top-right) with wallet-themed styling
-            # Use green tones for wallet/money theme with better visibility
-            wallet_props = dict(
-                boxstyle="round,pad=0.5",
-                facecolor="#2E8B57",  # Sea green for wallet theme
-                edgecolor="#90EE90",  # Light green border
-                linewidth=2,
-                alpha=0.85,
-            )
-            ax.text(
-                0.98,
-                0.98,
-                wallet_text,
-                transform=ax.transAxes,
-                fontsize=10,
-                verticalalignment="top",
-                horizontalalignment="right",
-                bbox=wallet_props,
-                color="white",
-                weight="bold",
-            )
+            # Show custom dialog instead of blocking plt.show()
+            from ui.components.chart_widget import ChartDialog
+            
+            # Close existing dialog if any
+            if hasattr(self, "current_chart_dialog") and self.current_chart_dialog:
+                try:
+                    self.current_chart_dialog.close()
+                except Exception:
+                    pass
+            
+            self.current_chart_dialog = ChartDialog(fig, self, title=f"{symbol} Chart")
+            
+            # Position to the LEFT of the Main Window to avoid covering it
+            # Main window is Top-Mid, so we have space on the left
+            main_geom = self.frameGeometry()
+            dialog_width = self.current_chart_dialog.width()
+            
+            # Target X: Left of main window minus dialog width minus padding
+            target_x = main_geom.x() - dialog_width - 20
+            
+            # Ensure we don't go off-screen (keep at least 10px margin)
+            target_x = max(10, target_x)
+            
+            # Target Y: Align with main window top
+            target_y = main_geom.y()
+            
+            self.current_chart_dialog.move(target_x, target_y)
+            
+            self.current_chart_dialog.show()  # Modeless (non-blocking)
 
-            plt.show()
+
 
         except Exception as e:
             raise Exception(f"Chart generation failed for {symbol}: {e}")
@@ -617,22 +734,58 @@ class MainWindow(QMainWindow):
             if self.websocket_restarting:
                 return
 
+            from services.account.wallet_service import get_cached_wallet_info
+
             data = load_fav_coins()
 
             # Update favorite coin buttons
             for i in range(len(self.fav_coin_panel.get_coin_buttons())):
-                coin_data = data["coins"][i]
-                symbol = coin_data.get("symbol", f"COIN_{i}")
-                price = coin_data.get("values", {}).get("current", "0.00")
-                display_symbol = view_coin_format(symbol)
-                self.fav_coin_panel.update_coin_button(i, display_symbol, price)
+                try:
+                    coin_data = data["coins"][i]
+                    symbol = coin_data.get("symbol", f"COIN_{i}")
+                    price = coin_data.get("values", {}).get("current", "0.00")
+                    display_symbol = view_coin_format(symbol)
+                    
+                    # Get wallet value with safety checks
+                    wallet_value = 0.0
+                    try:
+                        w_info = get_cached_wallet_info(symbol)
+                        if w_info and isinstance(w_info, dict):
+                            # Ensure we have valid numeric data
+                            amount = float(w_info.get("amount", 0.0))
+                            current_price = float(w_info.get("current_price", 0.0))
+                            # Use existing value if available, or calculate it
+                            wallet_value = float(w_info.get("usdt_value", amount * current_price))
+                    except Exception as e:
+                        # Log debug but don't spam errors for every coin every second
+                        # logging.debug(f"Error getting wallet value for {symbol}: {e}")
+                        wallet_value = 0.0
+
+                    self.fav_coin_panel.update_coin_button(i, display_symbol, price, wallet_value)
+                except Exception as e:
+                     logging.debug(f"Error updating fav coin {i}: {e}")
 
             # Update dynamic coin button
-            dyn_data = data["dynamic_coin"][0]
-            symbol = dyn_data.get("symbol", "DYN_COIN")
-            price = dyn_data.get("values", {}).get("current", "0.00")
-            display_symbol = view_coin_format(symbol)
-            self.dynamic_coin_panel.update_coin_button(display_symbol, price)
+            try:
+                dyn_data = data["dynamic_coin"][0]
+                symbol = dyn_data.get("symbol", "DYN_COIN")
+                price = dyn_data.get("values", {}).get("current", "0.00")
+                display_symbol = view_coin_format(symbol)
+                
+                # Get wallet value for dynamic coin
+                wallet_value = 0.0
+                try:
+                    w_info = get_cached_wallet_info(symbol)
+                    if w_info and isinstance(w_info, dict):
+                        amount = float(w_info.get("amount", 0.0))
+                        current_price = float(w_info.get("current_price", 0.0))
+                        wallet_value = float(w_info.get("usdt_value", amount * current_price))
+                except Exception:
+                    wallet_value = 0.0
+
+                self.dynamic_coin_panel.update_coin_button(display_symbol, price, wallet_value)
+            except Exception as e:
+                logging.debug(f"Error updating dynamic coin: {e}")
 
         except Exception as e:
             error_msg = f"Error updating coin prices: {e}"
@@ -643,8 +796,15 @@ class MainWindow(QMainWindow):
         try:
             if hasattr(self, "api_keys_valid") and not self.api_keys_valid:
                 return
-            available_usdt = retrieve_usdt_balance(self.client)
-            self.wallet_panel.update_wallet_balance(available_usdt)
+            # Use Worker for wallet update to prevent UI freeze
+            if not hasattr(self, 'wallet_worker'):
+                self.wallet_worker = WalletWorker(self.client)
+                self.wallet_worker.balance_updated.connect(self.wallet_panel.update_wallet_balance)
+                self.wallet_worker.error_occurred.connect(lambda e: logging.debug(f"Wallet update error: {e}"))
+            
+            if not self.wallet_worker.isRunning():
+                self.wallet_worker.start()
+
         except Exception as e:
             error_msg = f"Error updating wallet: {e}"
             logging.error(error_msg)
@@ -911,6 +1071,33 @@ class MainWindow(QMainWindow):
         try:
             logging.info("🔒 Application closing - starting security cleanup...")
 
+            # 0. Thread ve Timer Temizliği (ÖNCE BUNLARI DURDUR)
+            try:
+                logging.info("⏳ Stopping background threads and timers...")
+                
+                # Timers
+                if hasattr(self, 'price_timer') and self.price_timer.isActive():
+                    self.price_timer.stop()
+                if hasattr(self, 'wallet_timer') and self.wallet_timer.isActive():
+                    self.wallet_timer.stop()
+                
+                # Workers
+                workers = ['wallet_worker', 'order_worker', 'chart_worker', 'cache_worker']
+                for worker_name in workers:
+                    if hasattr(self, worker_name):
+                        worker = getattr(self, worker_name)
+                        if worker and worker.isRunning():
+                            logging.debug(f"Stopping {worker_name}...")
+                            worker.quit()
+                            if not worker.wait(2000): # 2 saniye bekle
+                                logging.warning(f"⚠️ {worker_name} did not stop gracefully, terminating...")
+                                worker.terminate()
+                                worker.wait()
+                
+                logging.info("✅ Background threads stopped")
+            except Exception as e:
+                logging.error(f"❌ Error stopping threads: {e}")
+
             # 1. API credentials'ları bellekten temizle
             try:
                 from services.binance_client import (
@@ -932,7 +1119,7 @@ class MainWindow(QMainWindow):
 
                 # Try to close HTTP sessions cleanly
                 try:
-                    loop = asyncio.get_running_loop()
+                    asyncio.get_running_loop()
                     asyncio.create_task(close_http_session())
                 except RuntimeError:
                     # No running loop
@@ -1062,6 +1249,8 @@ def initialize_gui(start_time=None):
         from PySide6.QtWidgets import QMessageBox
 
         splash = show_splash_screen()
+        # Stop auto-animation to take manual control and prevent timer conflicts
+        splash.stop_animation()
         app.processEvents()
 
         # Initial loading message
@@ -1071,6 +1260,7 @@ def initialize_gui(start_time=None):
         # Loop to allow restarting setup if credentials are reset
         client = None
         setup_credentials = None
+        password_duration = 0.0  # Initialize here to ensure it's always defined for _finish_startup
 
         while True:
             # Secure storage check and credential setup
@@ -1110,6 +1300,7 @@ def initialize_gui(start_time=None):
 
                         # Restart splash screen for continued loading
                         splash = show_splash_screen()
+                        splash.stop_animation()
                         splash.set_progress(25, "🔐 Credentials setup complete...")
                         app.processEvents()
                     else:
@@ -1158,9 +1349,10 @@ def initialize_gui(start_time=None):
                     )
                 else:
                     # Use normal client preparation (will ask for master password)
+                    # Pass None as parent to avoid Qt event loop issues with splash screen
                     import time
                     pw_start = time.time()
-                    client = prepare_client(gui_mode=True, parent_widget=splash)
+                    client = prepare_client(gui_mode=True, parent_widget=None)
                     pw_end = time.time()
                     password_duration = pw_end - pw_start
                     logging.info("Binance client prepared successfully")
@@ -1186,9 +1378,10 @@ def initialize_gui(start_time=None):
 
                 # Handle credential-related errors specifically
                 error_str = str(e)
+                # Handle credential-related errors specifically
+                error_str = str(e)
                 if (
                     "Secure credentials not configured" in error_str
-                    or "Master password could not be verified" in error_str
                     or "User cancelled password input" in error_str
                 ):
                     # Popup tamamen kaldırıldı; sadece log ve sessiz çıkış.
@@ -1196,6 +1389,13 @@ def initialize_gui(start_time=None):
                         "Credential issue detected (suppressed popup): %s", error_str
                     )
                     return -1
+                elif "Master password could not be verified" in error_str:
+                     QMessageBox.warning(
+                        None,
+                        "Security Warning",
+                        "❌ Incorrect Master Password!\n\nPlease try again.",
+                    )
+                     return -1
                 else:
                     QMessageBox.critical(
                         None,
@@ -1205,16 +1405,36 @@ def initialize_gui(start_time=None):
                     )
                     return -1
         
+        # --- Post-loop: Recreate splash after password dialog to avoid Qt state issues ---
+        logging.info("TRACE: Loop exited, recreating splash for post-login flow...")
+        try:
+            # Close the old splash (might be in invalid state after password dialog)
+            try:
+                splash.close()
+            except Exception:
+                pass
+            
+            # Create a fresh splash screen
+            splash = show_splash_screen()
+            splash.stop_animation()
+            splash.set_progress(50, "✅ Login successful, continuing...")
+            app.processEvents()
+            logging.info("TRACE: Fresh splash created successfully")
+        except Exception as splash_err:
+            logging.warning(f"TRACE: Splash recreation failed: {splash_err}")
+            # Continue without splash - not critical
+        
         # --- Immediate credential validation (lightweight) ---
+        logging.info("TRACE: Starting credential validation...")
         api_keys_valid = False
         try:
-            splash.set_progress(55, "🧪 Validating credentials...")
-            app.processEvents()
             # Basic endpoint call to verify keys: get account (requires valid signature)
             from services.account import retrieve_usdt_balance
-
+            
             retrieve_usdt_balance(client)  # will raise if invalid
+            
             api_keys_valid = True
+            logging.info("TRACE: Credentials valid!")
             splash.set_progress(70, "✅ Credentials valid!")
         except Exception as val_err:
             api_keys_valid = False
@@ -1229,12 +1449,15 @@ def initialize_gui(start_time=None):
         except Exception:
             pass
 
+        logging.info("TRACE: Calling app.processEvents after validation...")
         app.processEvents()
 
         # Ana pencere oluşturma
+        logging.info("TRACE: Setting splash progress to 85%...")
         splash.set_progress(85, "🎨 Preparing main window...")
         app.processEvents()
 
+        logging.info("TRACE: Creating MainWindow...")
         logging.info("Creating modular main window...")
         window = MainWindow(client)
         # Pass validation result into window
@@ -1266,33 +1489,52 @@ def initialize_gui(start_time=None):
 
         # Kısa gecikme sonra ana pencereyi göster
         def _finish_startup():
-            splash.close()
-            window.show_and_focus()
+            try:
+                logging.info("Executing _finish_startup sequence...")
+                splash.close()
+                window.show_and_focus()
 
-            # Log app readiness if start_time is provided
-            if start_time:
-                import time
-                ready_time = time.time()
-                # Get captured password duration or default to 0
-                pw_duration = password_duration if 'password_duration' in locals() else 0.0
-                get_data_logger().log_app_ready(start_time, ready_time, pw_duration)
+                # Log app readiness if start_time is provided
+                if start_time:
+                    import time
+                    ready_time = time.time()
+                    try:
+                        get_data_logger().log_app_ready(start_time, ready_time, password_duration)
+                    except Exception as log_err:
+                        logging.warning(f"Failed to log app readiness: {log_err}")
 
-            # Show status message in terminal instead of popup
-            if hasattr(window, "terminal_widget"):
-                if getattr(window, "api_keys_valid", True):
-                    window.terminal_widget.append_message(
-                        "✅ API keys validated. Full functionality enabled."
-                    )
-                else:
-                    window.terminal_widget.append_message(
-                        "⚠️ API keys invalid or connection failed. LIMITED MODE: Orders & balance disabled, prices still show. Go to Settings > Reset Credentials to re-enter keys, then restart."
-                    )
-                    
-        QTimer.singleShot(1000, _finish_startup)
+                # Show status message in terminal instead of popup
+                if hasattr(window, "terminal_widget"):
+                    if getattr(window, "api_keys_valid", True):
+                        window.terminal_widget.append_message(
+                            "✅ API keys validated. Full functionality enabled."
+                        )
+                    else:
+                        window.terminal_widget.append_message(
+                            "⚠️ API keys invalid or connection failed. LIMITED MODE: Orders & balance disabled, prices still show. Go to Settings > Reset Credentials to re-enter keys, then restart."
+                        )
+                logging.info("Startup sequence completed successfully")
+            except Exception as e:
+                logging.critical(f"CRITICAL ERROR in _finish_startup: {e}")
+                # Try to show window anyway if splash failed to close
+                try:
+                    splash.close()
+                    window.show()
+                except Exception:
+                    pass
+
+        # Doğrudan çağır - Timer'a güvenme (PyInstaller ortamında sorun olabiliyor)
+        logging.info("Calling _finish_startup directly...")
+        _finish_startup()
 
         logging.info("Showing modular main window...")
         logging.info("Starting GUI event loop...")
         return app.exec()
     except Exception as e:
         logging.exception(f"Unhandled error initializing GUI: {e}")
+        try:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.critical(None, "Fatal Startup Error", f"Unhandled error initializing GUI:\n{str(e)}\n\nCheck logs in data/logs for details.")
+        except Exception:
+            pass
         return -1

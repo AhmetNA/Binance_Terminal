@@ -1,10 +1,14 @@
+import logging
 import requests
 import pandas as pd
-import logging
+import matplotlib.pyplot as plt
+
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QPushButton, QWidget
+from PySide6.QtCore import Qt
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 
 from core.paths import PREFERENCES_FILE
-from services.binance_client import prepare_client
-from services.account import get_coin_wallet_info
 
 """
 This module retrieves and formats candlestick data from the Binance API.
@@ -22,9 +26,75 @@ Functions:
     get_chart_data(symbol="BTCUSDT"):
         Orchestrates the process by first fetching the raw candle data and then formatting it.
         It raises a ValueError if the API response is not in the expected format.
-    get_wallet_info_for_chart(symbol):
-        Gets wallet balance information for display in chart.
 """
+
+
+class ChartDialog(QDialog):
+    """
+    Custom Dialog to display Matplotlib plots within the Qt application.
+    Independent window that doesn't block the main event loop in a crashing way.
+    """
+    def __init__(self, figure, parent=None, title="Coin Chart"):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setWindowFlags(Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowMaximizeButtonHint)
+        self.resize(500, 350)
+        
+        # Apply dark theme to dialog
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #1e1e1e;
+                color: #e0e0e0;
+            }
+            QPushButton {
+                background-color: #333333;
+                color: white;
+                border: 1px solid #555555;
+                padding: 6px 12px;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #444444;
+            }
+            QPushButton:pressed {
+                background-color: #222222;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Create canvas
+        self.canvas = FigureCanvas(figure)
+        self.canvas.setStyleSheet("background-color: #1e1e1e;")
+        
+        # Add navigation toolbar
+        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.toolbar.setStyleSheet("background-color: #2b2b2b; color: #e0e0e0; border-bottom: 1px solid #3d3d3d;")
+        
+        layout.addWidget(self.toolbar)
+        layout.addWidget(self.canvas)
+
+        # Close button area
+        button_container = QWidget()
+        button_container.setStyleSheet("background-color: #2b2b2b; border-top: 1px solid #3d3d3d;")
+        button_layout = QVBoxLayout(button_container)
+        button_layout.setContentsMargins(10, 10, 10, 10)
+        
+        close_btn = QPushButton("Close")
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.clicked.connect(self.accept)
+        close_btn.setFixedWidth(100)
+        
+        button_layout.addWidget(close_btn, alignment=Qt.AlignRight)
+        layout.addWidget(button_container)
+
+    def closeEvent(self, event):
+        """Cleanup when closed"""
+        plt.close(self.canvas.figure)
+        super().closeEvent(event)
+
 
 
 def fetch_candles(symbol="BTCUSDT", interval="1m", limit=50):
@@ -126,70 +196,3 @@ def get_chart_data(symbol="BTCUSDT"):
     return df
 
 
-def get_wallet_info_for_chart(symbol):
-    """
-    Chart için wallet bilgilerini getirir.
-    Client bağlantısı varsa wallet bilgilerini döndürür, yoksa None.
-
-    Args:
-        symbol (str): Coin symbol (örn: BTCUSDT)
-
-    Returns:
-        dict or None: Wallet bilgileri veya None (client bağlantısı yoksa)
-    """
-    try:
-        # Client'ı kontrol et
-        client = prepare_client()
-        if client is None:
-            return None
-
-        # Wallet bilgilerini al
-        wallet_info = get_coin_wallet_info(symbol, client)
-
-        # Error varsa None döndür
-        if "error" in wallet_info:
-            logging.warning(f"Wallet info error for {symbol}: {wallet_info['error']}")
-            return None
-
-        return wallet_info
-
-    except Exception as e:
-        logging.error(f"Error getting wallet info for chart {symbol}: {e}")
-        return None
-
-
-def format_chart_wallet_text(wallet_info):
-    """
-    Chart için wallet bilgilerini formatlar.
-
-    Args:
-        wallet_info (dict): Wallet bilgileri
-
-    Returns:
-        str: Chart'ta gösterilecek formatlanmış text
-    """
-    if wallet_info is None:
-        return "WALLET\n✗ No connection"
-
-    if "error" in wallet_info:
-        return "WALLET\n⚠ Error loading"
-
-    coin_symbol = wallet_info["coin_symbol"]
-    amount = wallet_info["amount"]
-    usdt_value = wallet_info["usdt_value"]
-
-    if amount == 0:
-        return f"WALLET\n○ 0 {coin_symbol}"
-
-    # Format numbers for better readability in chart
-    if amount >= 1:
-        amount_str = f"{amount:.4f}".rstrip("0").rstrip(".")
-    else:
-        amount_str = f"{amount:.6f}".rstrip("0").rstrip(".")
-
-    if usdt_value >= 1:
-        usdt_str = f"{usdt_value:.2f}"
-    else:
-        usdt_str = f"{usdt_value:.4f}".rstrip("0").rstrip(".")
-
-    return f"♦ WALLET ASSET ♦\n▪ {amount_str} {coin_symbol}\n$ {usdt_str} USDT"
